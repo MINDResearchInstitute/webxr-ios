@@ -22,9 +22,17 @@ This application is *not* intended to replace a fully featured web browser. It i
 
 Building this app requires XCode 9 (beta 6 or newer) and an iPhone or iPad running at least iOS 11.
 
-Before opening XCode, update cocoapods by running:
+Before opening XCode, install and update cocoapods by running:
 
-	cd webxr-ios
+Install cocoapods
+````
+  sudo gem install cocoapods  
+  pod setup
+````
+
+Update cocoapods
+
+	sudo gem install cocoapods   
 	pod repo update
 	pod install
 

@@ -610,10 +610,10 @@ typedef void (^UICompletion)(void);
              [blockSelf sendARKData];
          }
 
-         if ([[blockSelf stateController] shouldSendCVData]) {
+//         if ([[blockSelf stateController] shouldSendCVData]) {
              [blockSelf sendComputerVisionData];
              [[[blockSelf stateController] state] setComputerVisionFrameRequested:NO];
-         }
+//         }
      }];
     [[self arkController] setDidFailSession:^(NSError *error)
     {
@@ -1135,7 +1135,7 @@ typedef void (^UICompletion)(void);
     __weak typeof (self) blockSelf = self;
     
     [[self arkController] setComputerVisionDataEnabled: false];
-    [[[self stateController] state] setUserGrantedSendingComputerVisionData:false];
+    [[[self stateController] state] setUserGrantedSendingComputerVisionData:true];
     [[[self stateController] state] setUserGrantedSendingWorldStateData:false];
     [[[self stateController] state] setSendComputerVisionData: true];
     [[[self stateController] state] setAskedComputerVisionData: false];
@@ -1143,7 +1143,8 @@ typedef void (^UICompletion)(void);
     [[self arkController] setSendingWorldSensingDataAuthorizationStatus: SendWorldSensingDataAuthorizationStateNotDetermined];
 
     if ([request[WEB_AR_CV_INFORMATION_OPTION] boolValue]) {
-        [[self messageController] showMessageAboutAccessingTheCapturedImage:^(BOOL granted){
+        BOOL granted = YES;
+//        [[self messageController] showMessageAboutAccessingTheCapturedImage:^(BOOL granted){
             [[blockSelf webController] userGrantedComputerVisionData:granted];
             if ([blockSelf arkController]) {
                 [[blockSelf arkController] setComputerVisionDataEnabled:granted];
@@ -1156,7 +1157,7 @@ typedef void (^UICompletion)(void);
             
             [[[blockSelf stateController] state] setAskedWorldStateData: true];
             [[[blockSelf stateController] state] setUserGrantedSendingWorldStateData: granted ? SendWorldSensingDataAuthorizationStateAuthorized: SendWorldSensingDataAuthorizationStateDenied];
-        }];
+//        }];
     } else if ([request[WEB_AR_WORLD_SENSING_DATA_OPTION] boolValue]) {
         [[self messageController] showMessageAboutAccessingWorldSensingData:^(BOOL granted){
             [[blockSelf webController] userGrantedSendingWorldSensingData:granted];

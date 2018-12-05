@@ -12,6 +12,9 @@
 #import "Constants.h"
 #import "Compression.h"
 
+const float CAMERA_FRAME_SCALE_FACTOR = 0.4; //0.295;
+const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
+
 @interface ARKController () <ARSessionDelegate>
 {
     NSDictionary *arkData;
@@ -253,23 +256,25 @@
 
 - (NSDictionary *)arkData
 {
-    NSDictionary *data;
+//    NSDictionary *data;
     
-    os_unfair_lock_lock(&(lock));
-    data = arkData;
-    os_unfair_lock_unlock(&(lock));
+//    os_unfair_lock_lock(&(lock));
+//    data = arkData;
+//    os_unfair_lock_unlock(&(lock));
     
-    return [data copy];
+//    return [data copy];
+    return arkData;
 }
 
 - (NSDictionary*)computerVisionData {
-    NSDictionary* data;
+//    NSDictionary* data;
     
-    os_unfair_lock_lock(&(lock));
-    data = computerVisionData;
-    os_unfair_lock_unlock(&(lock));
+//    os_unfair_lock_lock(&(lock));
+//    data = computerVisionData;
+//    os_unfair_lock_unlock(&(lock));
     
-    return [data copy];
+//    return [data copy];
+    return computerVisionData;
 }
 
 - (NSTimeInterval)currentFrameTimeInMilliseconds {
@@ -1242,7 +1247,7 @@
                 [addedAnchorsSinceLastFrame removeAllObjects];
                 newData[WEB_AR_3D_NEW_OBJECTS_OPTION] = newObjects;
             }
-            if ([self computerVisionDataEnabled]) {
+//            if ([self computerVisionDataEnabled]) {
                 NSMutableDictionary *cameraInformation = [NSMutableDictionary new];
                 CGSize cameraImageResolution = [[frame camera] imageResolution];
                 cameraInformation[@"cameraImageResolution"] = @{
@@ -1290,8 +1295,8 @@
                 frameInformation[@"capturedDepthDataTimestamp"] = nil;
                 
                 // Computer vision data
-                [self updateBase64BuffersFromPixelBuffer:frame.capturedImage];
-                
+//                [self updateBase64BuffersFromPixelBuffer:frame.capturedImage];
+            
                 NSMutableDictionary *lumaBufferDictionary = [NSMutableDictionary new];
                 lumaBufferDictionary[@"size"] = @{
                                         @"width": @(self.lumaBufferSize.width),
@@ -1299,9 +1304,9 @@
                                         @"bytesPerRow": @(self.lumaBufferSize.width * sizeof(Pixel_8)),
                                         @"bytesPerPixel": @(sizeof(Pixel_8))
                                         };
-                lumaBufferDictionary[@"buffer"] = self.lumaBase64StringBuffer;
-                
-                
+//                lumaBufferDictionary[@"buffer"] = self.lumaBase64StringBuffer;
+
+
                 NSMutableDictionary *chromaBufferDictionary = [NSMutableDictionary new];
                 chromaBufferDictionary[@"size"] = @{
                                         @"width": @(self.chromaBufferSize.width),
@@ -1309,25 +1314,30 @@
                                         @"bytesPerRow": @(self.chromaBufferSize.width * sizeof(Pixel_16U)),
                                         @"bytesPerPixel": @(sizeof(Pixel_16U))
                                         };
-                chromaBufferDictionary[@"buffer"] = self.chromaBase64StringBuffer;
+//                chromaBufferDictionary[@"buffer"] = self.chromaBase64StringBuffer;
                 
-                frameInformation[@"buffers"] = @[lumaBufferDictionary, chromaBufferDictionary];
+                NSMutableDictionary *jpegBufferDictionary = [NSMutableDictionary new];
+                jpegBufferDictionary[@"data"] = [self getBase64ImageFromPixelBuffer:frame.capturedImage];
+                
+                frameInformation[@"buffers"] = @[lumaBufferDictionary, chromaBufferDictionary, jpegBufferDictionary];
                 frameInformation[@"pixelFormatType"] = [self stringForOSType:CVPixelBufferGetPixelFormatType(frame.capturedImage)];
                 
                 cvInformation[@"frame"] = frameInformation;
                 cvInformation[@"camera"] = cameraInformation;
                 
-                os_unfair_lock_lock(&(lock));
-                computerVisionData = [cvInformation copy];
-                os_unfair_lock_unlock(&(lock));
-            }
+//                os_unfair_lock_lock(&(lock));
+//                computerVisionData = [cvInformation copy];
+//                os_unfair_lock_unlock(&(lock));
+                computerVisionData = cvInformation;
+//            }
 
             newData[WEB_AR_3D_GEOALIGNED_OPTION] = @([[self configuration] worldAlignment] == ARWorldAlignmentGravityAndHeading ? YES : NO);
             newData[WEB_AR_3D_VIDEO_ACCESS_OPTION] = @([self computerVisionDataEnabled] ? YES : NO);
             
-            os_unfair_lock_lock(&(lock));
-            arkData = [newData copy];
-            os_unfair_lock_unlock(&(lock));
+//            os_unfair_lock_lock(&(lock));
+//            arkData = [newData copy];
+//            os_unfair_lock_unlock(&(lock));
+            arkData = newData;
         }
     }
 }
@@ -1351,6 +1361,44 @@
           capturedImagePixelBufferBytesPerRow,
           [self stringForOSType:capturedImagePixelBufferPixelFormatType],
           capturedImagePixelBufferBaseAddress);
+}
+
+/*
+ This code is inspired by the open source project:
+ https://github.com/Stinkstudios/arkit-web
+ Kudos to: Amelie (@ixviii_io)
+ */
+-(NSString*)getBase64ImageFromPixelBuffer:(CVPixelBufferRef)pixelBuffer {
+    // The context to be able to create the CGImage.
+    static CIContext* ciContext = nil;
+    ciContext = [CIContext contextWithOptions:nil];
+    // Convert the pixel buffer to a CIImage
+    CIImage* ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
+    // Apply a scaling transformation to the CIImage and get a new one
+    CGAffineTransform scaleTransform =
+    CGAffineTransformScale(CGAffineTransformIdentity,
+                           CAMERA_FRAME_SCALE_FACTOR, CAMERA_FRAME_SCALE_FACTOR);
+    CIImage* resizedCIImage = [ciImage imageByApplyingTransform:scaleTransform];
+    // Create a CGImage from the CIImage
+    CGImageRef cgImage = [ciContext createCGImage:resizedCIImage
+                                         fromRect:resizedCIImage.extent];
+    if (cgImage) {
+        // Create an UIImage from the CGImage
+        UIImage* uiImage = [UIImage imageWithCGImage:cgImage];
+        // IMPORTANT: CG structures are not handled by the ARC system.
+        // Release the CG image now that we have a corresponding UIImage.
+        CGImageRelease(cgImage);
+        // Compress the image as JPEG
+        NSData* jpegImageData =
+        UIImageJPEGRepresentation(uiImage, CAMERA_FRAME_JPEG_COMPRESSION_FACTOR);
+        if (jpegImageData) {
+            // Transform the JPEG data into a base64 format so it can be
+            // passed to the JS side as a string.
+            return [jpegImageData base64EncodedStringWithOptions:
+                    NSDataBase64Encoding64CharacterLineLength];
+        }
+    }
+    return nil;
 }
 
 -(void)updateBase64BuffersFromPixelBuffer:(CVPixelBufferRef)capturedImagePixelBuffer {

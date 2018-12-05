@@ -486,8 +486,12 @@ inline static WebCompletion debugCompletion(NSString *name)
     
     NSString *jsString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
     NSString *jsScript = [NSString stringWithFormat:@"%@(%@)", name, jsString];
-    
-    [[self webView] evaluateJavaScript:jsScript completionHandler:completion];
+//    if ([name isEqualToString:@"onComputerVisionData"]) {
+//        [[self webView] evaluateJavaScript:@"onComputerVisionData({buffer:'success1'})" completionHandler:completion];
+//    }
+//    else {
+        [[self webView] evaluateJavaScript:jsScript completionHandler:completion];
+//    }
 }
 
 #pragma mark WKUIDelegate, WKNavigationDelegate
@@ -564,6 +568,11 @@ inline static WebCompletion debugCompletion(NSString *name)
 - (BOOL)webView:(WKWebView *)webView shouldPreviewElement:(WKPreviewElementInfo *)elementInfo
 {
     return NO;
+}
+
+- (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(nonnull NSURLAuthenticationChallenge *)challenge completionHandler:(nonnull void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential * _Nullable))completionHandler {
+    NSURLCredential * credential = [[NSURLCredential alloc] initWithTrust:[challenge protectionSpace].serverTrust];
+    completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
 }
 
 #pragma mark Private
