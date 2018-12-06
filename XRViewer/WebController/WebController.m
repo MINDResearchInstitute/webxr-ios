@@ -6,6 +6,8 @@
 #import "BarView.h"
 #import "Constants.h"
 
+double lastSentTime = 0;
+
 @interface WebController () <WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler>
 
 @property (nonatomic, weak) UIView *rootView;
@@ -86,11 +88,15 @@ inline static WebCompletion debugCompletion(NSString *name)
 
 
 - (void)sendComputerVisionData:(NSDictionary *)computerVisionData {
-    [self callWebMethod:@"onComputerVisionData" paramJSON:computerVisionData webCompletion:^(id  _Nullable param, NSError * _Nullable error) {
-        if (error != nil) {
-            NSLog(@"Error onComputerVisionData: %@", [error localizedDescription]);
-        }
-    }];
+    int frameTimestamp = [[[computerVisionData objectForKey:@"frame"] objectForKey:@"timestamp"] intValue];
+    if (frameTimestamp - lastSentTime > 100) {
+        lastSentTime = frameTimestamp;
+        [self callWebMethod:@"onComputerVisionData" paramJSON:computerVisionData webCompletion:^(id  _Nullable param, NSError * _Nullable error) {
+            if (error != nil) {
+                NSLog(@"Error onComputerVisionData: %@", [error localizedDescription]);
+            }
+        }];
+    }
 }
 
 - (void)sendNativeTime:(NSTimeInterval)nativeTime {

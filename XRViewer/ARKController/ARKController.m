@@ -15,6 +15,8 @@
 const float CAMERA_FRAME_SCALE_FACTOR = 0.4; //0.295;
 const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
 
+double lastConvertTime = 0;
+
 @interface ARKController () <ARSessionDelegate>
 {
     NSDictionary *arkData;
@@ -1247,7 +1249,11 @@ const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
                 [addedAnchorsSinceLastFrame removeAllObjects];
                 newData[WEB_AR_3D_NEW_OBJECTS_OPTION] = newObjects;
             }
-//            if ([self computerVisionDataEnabled]) {
+            
+            NSInteger frameTimestamp = (NSInteger) ([frame timestamp] * 1000.0);
+            
+            if ([self computerVisionDataEnabled] && frameTimestamp - lastConvertTime > 100) {
+                        lastConvertTime = frameTimestamp;
                 NSMutableDictionary *cameraInformation = [NSMutableDictionary new];
                 CGSize cameraImageResolution = [[frame camera] imageResolution];
                 cameraInformation[@"cameraImageResolution"] = @{
@@ -1287,8 +1293,7 @@ const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
                 
                 NSMutableDictionary *cvInformation = [NSMutableDictionary new];
                 NSMutableDictionary *frameInformation = [NSMutableDictionary new];
-                NSInteger timestamp = (NSInteger) ([frame timestamp] * 1000.0);
-                frameInformation[@"timestamp"] = @(timestamp);
+                frameInformation[@"timestamp"] = @(frameTimestamp);
                 
                 // TODO: prepare depth data
                 frameInformation[@"capturedDepthData"] = nil;
@@ -1329,7 +1334,7 @@ const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
 //                computerVisionData = [cvInformation copy];
 //                os_unfair_lock_unlock(&(lock));
                 computerVisionData = cvInformation;
-//            }
+            }
 
             newData[WEB_AR_3D_GEOALIGNED_OPTION] = @([[self configuration] worldAlignment] == ARWorldAlignmentGravityAndHeading ? YES : NO);
             newData[WEB_AR_3D_VIDEO_ACCESS_OPTION] = @([self computerVisionDataEnabled] ? YES : NO);
