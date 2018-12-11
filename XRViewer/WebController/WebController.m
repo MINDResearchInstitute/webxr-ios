@@ -6,6 +6,9 @@
 #import "BarView.h"
 #import "Constants.h"
 
+#import <CoreAudioKit/CoreAudioKit.h>
+#import <CoreAudio/CoreAudioTypes.h>
+
 double lastSentTime = 0;
 
 @interface WebController () <WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler>
@@ -468,6 +471,8 @@ inline static WebCompletion debugCompletion(NSString *name)
                 [blockSelf callWebMethod:setWorldMapCallback paramJSON:responseDictionary webCompletion:NULL];
             });
         }
+    } else if ([[message name] isEqualToString:WEB_AR_PLAY_VIBERATE]) {
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
     } else {
         DDLogError(@"Unknown message: %@ ,for name: %@", [message body], [message name]);
     }
@@ -721,6 +726,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_GET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_SET_WORLD_MAP_MESSAGE];
+    [[self contentController] addScriptMessageHandler:self name:WEB_AR_PLAY_VIBERATE];
 }
 
 - (void)cleanWebContent
@@ -742,6 +748,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_ACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DEACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
+    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_PLAY_VIBERATE];
 }
 
 - (void)setupWebViewWithRootView:(__autoreleasing UIView*)rootView
