@@ -471,7 +471,7 @@ inline static WebCompletion debugCompletion(NSString *name)
                 [blockSelf callWebMethod:setWorldMapCallback paramJSON:responseDictionary webCompletion:NULL];
             });
         }
-    } else if ([[message name] isEqualToString:WEB_AR_PLAY_VIBERATE]) {
+    } else if ([[message name] isEqualToString:WEB_AR_PLAY_VIBRATE]) {
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
     } else {
         DDLogError(@"Unknown message: %@ ,for name: %@", [message body], [message name]);
@@ -726,7 +726,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_GET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_SET_WORLD_MAP_MESSAGE];
-    [[self contentController] addScriptMessageHandler:self name:WEB_AR_PLAY_VIBERATE];
+    [[self contentController] addScriptMessageHandler:self name:WEB_AR_PLAY_VIBRATE];
 }
 
 - (void)cleanWebContent
@@ -748,7 +748,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_ACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DEACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
-    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_PLAY_VIBERATE];
+    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_PLAY_VIBRATE];
 }
 
 - (void)setupWebViewWithRootView:(__autoreleasing UIView*)rootView

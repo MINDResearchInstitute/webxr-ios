@@ -32,7 +32,7 @@
 #define WEB_AR_GET_WORLD_MAP_MESSAGE   @"getWorldMap"
 #define WEB_AR_SET_WORLD_MAP_MESSAGE   @"setWorldMap"
 
-#define WEB_AR_PLAY_VIBERATE @"playViberate"
+#define WEB_AR_PLAY_VIBRATE @"playVibrate"
 
 #define WEB_AR_ON_JS_UPDATE_MESSAGE    @"onUpdate" // reques from JS
 
