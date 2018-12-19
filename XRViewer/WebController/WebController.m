@@ -92,7 +92,7 @@ inline static WebCompletion debugCompletion(NSString *name)
 
 - (void)sendComputerVisionData:(NSDictionary *)computerVisionData {
     int frameTimestamp = [[[computerVisionData objectForKey:@"frame"] objectForKey:@"timestamp"] intValue];
-    if (frameTimestamp - lastSentTime > 100) {
+    if (frameTimestamp - lastSentTime > (1000/PREFER_FPS)) {
         lastSentTime = frameTimestamp;
         [self callWebMethod:@"onComputerVisionData" paramJSON:computerVisionData webCompletion:^(id  _Nullable param, NSError * _Nullable error) {
             if (error != nil) {

@@ -11,6 +11,7 @@
 #import <Accelerate/Accelerate.h>
 #import "Constants.h"
 #import "Compression.h"
+#import <JavaScriptCore/JavaScriptCore.h>
 
 const float CAMERA_FRAME_SCALE_FACTOR = 0.4; //0.295;
 const float CAMERA_FRAME_JPEG_COMPRESSION_FACTOR = 0.1;
@@ -1251,8 +1252,8 @@ double lastConvertTime = 0;
             }
             
             NSInteger frameTimestamp = (NSInteger) ([frame timestamp] * 1000.0);
-            
-            if ([self computerVisionDataEnabled] && frameTimestamp - lastConvertTime > 100) {
+
+            if ([self computerVisionDataEnabled] && frameTimestamp - lastConvertTime > (1000/PREFER_FPS)) {
                         lastConvertTime = frameTimestamp;
                 NSMutableDictionary *cameraInformation = [NSMutableDictionary new];
                 CGSize cameraImageResolution = [[frame camera] imageResolution];
