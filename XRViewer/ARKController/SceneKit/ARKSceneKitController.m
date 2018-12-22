@@ -141,13 +141,13 @@
     [[self renderView] setSession:session];
     [[self renderView] setScene:[SCNScene new]];
     [[self renderView] setShowsStatistics:NO];
-    [[self renderView] setAllowsCameraControl:YES];
+    [[self renderView] setAllowsCameraControl:NO];
     [[self renderView] setAutomaticallyUpdatesLighting:NO];
     [[self renderView] setPreferredFramesPerSecond:PREFER_FPS];
     [[self renderView] setDelegate:self];
     
     [self setCamera:[[[self renderView] pointOfView] camera]];
-    [[self camera] setWantsHDR:YES];
+    [[self camera] setWantsHDR:NO];
     
     [[[[self renderView] scene] lightingEnvironment] setContents:[UIColor whiteColor]];
     [[[[self renderView] scene] lightingEnvironment] setIntensity:50];

@@ -92,7 +92,7 @@ inline static WebCompletion debugCompletion(NSString *name)
 
 - (void)sendComputerVisionData:(NSDictionary *)computerVisionData {
     int frameTimestamp = [[[computerVisionData objectForKey:@"frame"] objectForKey:@"timestamp"] intValue];
-    if (frameTimestamp - lastSentTime > (1000/PREFER_FPS)) {
+    if (frameTimestamp - lastSentTime > (1000/CVIMAGE_FPS)) {
         lastSentTime = frameTimestamp;
         [self callWebMethod:@"onComputerVisionData" paramJSON:computerVisionData webCompletion:^(id  _Nullable param, NSError * _Nullable error) {
             if (error != nil) {
@@ -199,6 +199,9 @@ inline static WebCompletion debugCompletion(NSString *name)
 
 - (void)showBar:(BOOL)showBar
 {
+    if (showBar == NO) {
+        return;
+    }
     NSLog(@"Show bar: %@", showBar? @"Yes": @"No");
     [[[self barView] superview] layoutIfNeeded];
     

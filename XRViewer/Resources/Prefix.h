@@ -12,6 +12,7 @@ static const DDLogLevel ddLogLevel = DDLogLevelWarning;
 #define REQUESTED_URL_KEY @"requestedURL"
 
 #define PREFER_FPS 15
+#define CVIMAGE_FPS 5
 
 #endif /* Prefix_h */
 

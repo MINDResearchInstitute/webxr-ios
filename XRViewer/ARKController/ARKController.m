@@ -1253,7 +1253,7 @@ double lastConvertTime = 0;
             
             NSInteger frameTimestamp = (NSInteger) ([frame timestamp] * 1000.0);
 
-            if ([self computerVisionDataEnabled] && frameTimestamp - lastConvertTime > (1000/PREFER_FPS)) {
+            if ([self computerVisionDataEnabled] && frameTimestamp - lastConvertTime > (1000/CVIMAGE_FPS)) {
                         lastConvertTime = frameTimestamp;
                 NSMutableDictionary *cameraInformation = [NSMutableDictionary new];
                 CGSize cameraImageResolution = [[frame camera] imageResolution];
