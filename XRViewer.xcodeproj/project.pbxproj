@@ -56,6 +56,8 @@
 		6251B441202085BA00BD989D /* Constants.m in Sources */ = {isa = PBXBuildFile; fileRef = 6251B440202085BA00BD989D /* Constants.m */; };
 		625FA2E6202046BF00F62698 /* TermsAndConditionsTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625FA2E4202046BF00F62698 /* TermsAndConditionsTableViewCell.swift */; };
 		625FA2E7202046BF00F62698 /* TermsAndConditionsTableViewCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = 625FA2E5202046BF00F62698 /* TermsAndConditionsTableViewCell.xib */; };
+		7386DBF721DD6C2100D4F1D2 /* MINDMetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7386DBF621DD6C2100D4F1D2 /* MINDMetalRenderer.swift */; };
+		7386DBFD21DD958000D4F1D2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7386DBFC21DD958000D4F1D2 /* Shaders.metal */; };
 		8E5089D8211B6DA90059015B /* webxr.js in Resources */ = {isa = PBXBuildFile; fileRef = 8E5089D7211B6DA90059015B /* webxr.js */; };
 		8ED9EBB3211C6FB000DA58F1 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8ED9EBB2211C6FB000DA58F1 /* Web */; };
 		A6160A0B1F651B4D009F4402 /* Reachability.m in Sources */ = {isa = PBXBuildFile; fileRef = A6160A091F651B14009F4402 /* Reachability.m */; };
@@ -148,6 +150,8 @@
 		625FA2E5202046BF00F62698 /* TermsAndConditionsTableViewCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = TermsAndConditionsTableViewCell.xib; sourceTree = "<group>"; };
 		62676C121FEACCF100474547 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
 		62CB6E6E1AD338266A9AB3DC /* Pods_XRViewer.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_XRViewer.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7386DBF621DD6C2100D4F1D2 /* MINDMetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINDMetalRenderer.swift; sourceTree = "<group>"; };
+		7386DBFC21DD958000D4F1D2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		8E5089D7211B6DA90059015B /* webxr.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = webxr.js; sourceTree = "<group>"; };
 		8ED9EBB2211C6FB000DA58F1 /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Web; sourceTree = "<group>"; };
 		A6160A091F651B14009F4402 /* Reachability.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Reachability.m; sourceTree = "<group>"; };
@@ -275,6 +279,7 @@
 				04A8156C1F41BA660082D31D /* HitAnchor.m */,
 				04A82BED1F58566000F64A5D /* HitTestResult.h */,
 				04A82BEE1F58566100F64A5D /* HitTestResult.m */,
+				7386DBE421D6AF9500D4F1D2 /* MINDMetal */,
 				04B1E1261F3C64C100F96C5A /* SceneKit */,
 				04B1E1221F3C648200F96C5A /* Metal */,
 			);
@@ -437,6 +442,15 @@
 				6251B440202085BA00BD989D /* Constants.m */,
 			);
 			path = Constants;
+			sourceTree = "<group>";
+		};
+		7386DBE421D6AF9500D4F1D2 /* MINDMetal */ = {
+			isa = PBXGroup;
+			children = (
+				7386DBFC21DD958000D4F1D2 /* Shaders.metal */,
+				7386DBF621DD6C2100D4F1D2 /* MINDMetalRenderer.swift */,
+			);
+			path = MINDMetal;
 			sourceTree = "<group>";
 		};
 		8C9E99F056CB67F28E2A9647 /* Frameworks */ = {
@@ -624,9 +638,11 @@
 				04C64BCE1F71094500ACFB8B /* AppState.m in Sources */,
 				62242ACB201F2D3600506412 /* TextTableViewCell.swift in Sources */,
 				0449DE071F4D7F000057F639 /* MessageController.m in Sources */,
+				7386DBFD21DD958000D4F1D2 /* Shaders.metal in Sources */,
 				6241012D1FEABABF006FDBE3 /* AnalyticsManager.swift in Sources */,
 				6207254E206A90BF00887B1F /* RequestPermissionsViewController.swift in Sources */,
 				5184F8FC0384A338F76D2653 /* Utils.m in Sources */,
+				7386DBF721DD6C2100D4F1D2 /* MINDMetalRenderer.swift in Sources */,
 				6251B441202085BA00BD989D /* Constants.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -763,6 +779,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = Q63PHYLCEW;
 				GCC_PREFIX_HEADER = XRViewer/Resources/Prefix.h;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -770,12 +787,14 @@
 					"COCOAPODS=1",
 					"SEND_PLANES_BY_DEFAULT=0",
 				);
+				INCLUDED_SOURCE_FILE_NAMES = "";
 				INFOPLIST_FILE = "$(SRCROOT)/XRViewer/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" -D USE_ANALYTICS";
 				PRODUCT_BUNDLE_IDENTIFIER = org.mozilla.ios.XRViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_SWIFT_SYMBOLS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "XRViewer/Resources/XRViewer-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 4.2;
@@ -789,6 +808,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = Q63PHYLCEW;
 				GCC_PREFIX_HEADER = XRViewer/Resources/Prefix.h;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -796,12 +816,14 @@
 					"COCOAPODS=1",
 					"SEND_PLANES_BY_DEFAULT=0",
 				);
+				INCLUDED_SOURCE_FILE_NAMES = "";
 				INFOPLIST_FILE = "$(SRCROOT)/XRViewer/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" -D USE_ANALYTICS";
 				PRODUCT_BUNDLE_IDENTIFIER = org.mozilla.ios.XRViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_SWIFT_SYMBOLS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "XRViewer/Resources/XRViewer-Bridging-Header.h";
 				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";

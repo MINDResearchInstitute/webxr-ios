@@ -8,8 +8,9 @@
 #import "ARSCNView+HitTest.h"
 #import "HitTestResult.h"
 #import "SCNNode+Show.h"
+#import "XRViewer-Swift.h"
 
-@interface ARKSceneKitController () <ARSCNViewDelegate>
+@interface ARKSceneKitController () <ARSCNViewDelegate, MTKViewDelegate>
 
 @property (nonatomic, strong) ARSession *session;
 @property (nonatomic, strong) ARSCNView *renderView;
@@ -26,6 +27,9 @@
 
 @property(strong) FocusNode *focus;
 @property CGPoint hitTestFocusPoint;
+
+@property (nonatomic, strong) MTKView * mtkView;
+@property (nonatomic, strong) MINDMetalRenderer * metalRenderer;
 
 @end
 
@@ -47,6 +51,8 @@
         [self setAnchorsNodes:[NSMutableArray new]];
         
         [self setupFocus];
+        
+        [self setupMetalRendererWithSession:session size:size];
     }
     
     return self;
@@ -146,11 +152,27 @@
     [[self renderView] setPreferredFramesPerSecond:PREFER_FPS];
     [[self renderView] setDelegate:self];
     
+    // Hide AR camera view
+    //    [[self renderView] setHidden:YES];
+    
     [self setCamera:[[[self renderView] pointOfView] camera]];
     [[self camera] setWantsHDR:NO];
     
     [[[[self renderView] scene] lightingEnvironment] setContents:[UIColor whiteColor]];
     [[[[self renderView] scene] lightingEnvironment] setIntensity:50];
+}
+
+- (void)setupMetalRendererWithSession:(ARSession*)session size:(CGSize)size
+{
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    self.mtkView = [[MTKView alloc]initWithFrame:CGRectMake(0, 0, size.width, size.height) device:device];
+    self.mtkView.device = device;
+    self.mtkView.delegate = self;
+    
+    self.metalRenderer = [[MINDMetalRenderer alloc] init];
+    [self.metalRenderer setupWithSession:session device:device view:self.mtkView];
+    [self.metalRenderer drawRectResizedWithSize: size];
+    [[self renderView] addSubview:self.mtkView];
 }
 
 #pragma mark Focus
@@ -310,6 +332,14 @@
                            [[self planes] removeObjectForKey:[anchor identifier]];
                        }
                    });
+}
+
+- (void)drawInMTKView:(nonnull MTKView *)view {
+    [self.metalRenderer update];
+}
+
+- (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
+    [self.metalRenderer drawRectResizedWithSize: size];
 }
 
 @end
