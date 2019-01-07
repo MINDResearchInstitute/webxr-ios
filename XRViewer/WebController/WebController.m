@@ -806,6 +806,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     
     [wv setNavigationDelegate:self];
     [wv setUIDelegate:self];
+    [wv setHidden:YES];
     [self setWebView:wv];
 }
 

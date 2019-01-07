@@ -235,7 +235,7 @@ let maxAnchorInstanceCount: Int = 64
     func updateSharedUniforms(frame: ARFrame) {
         let uniforms = sharedUniformBufferAddress.assumingMemoryBound(to: SharedUniforms.self)
         uniforms.pointee.viewMatrix = simd_inverse(frame.camera.transform)
-        uniforms.pointee.projectionMatrix = frame.camera.projectionMatrix(for: .landscapeRight, viewportSize: viewportSize, zNear: 0.001, zFar: 1000)
+        uniforms.pointee.projectionMatrix = frame.camera.projectionMatrix(for: .portrait, viewportSize: viewportSize, zNear: 0.001, zFar: 1000)
         var ambientIntensity: Float = 1.0
         if let lightEstimate = frame.lightEstimate {
             ambientIntensity = Float(lightEstimate.ambientIntensity) / 1000.0

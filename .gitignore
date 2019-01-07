@@ -13,3 +13,5 @@ coverage*.xml
 test-results
 Pods/
 Web/
+Frameworks/
+IDEWorkspaceChecks.plist
