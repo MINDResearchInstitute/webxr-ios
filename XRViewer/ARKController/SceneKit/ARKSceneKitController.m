@@ -35,6 +35,10 @@
 
 @implementation ARKSceneKitController
 
+- (NSDictionary*) clinkCode {
+    return [[self metalRenderer] clinkCode];
+}
+
 - (void)dealloc
 {
     DDLogDebug(@"ARKSceneKitController dealloc");

@@ -26,6 +26,8 @@
 
 - (matrix_float4x4)cameraProjectionTransform;
 
+- (NSDictionary*) clinkCode;
+
 @end
 
 #endif /* ARKControllerProtocol_h */

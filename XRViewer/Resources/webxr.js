@@ -6078,11 +6078,11 @@ class ARKitWrapper extends EventTarget {
 			this._requestComputerVisionData();
 			return;
 		}
-		if (!detail.frame || !detail.frame.buffers || detail.frame.buffers.length <= 0) {
-			console.error("detail passed to _onComputerVisionData is bad, no buffers");
-			this._requestComputerVisionData();
-			return;
-		}
+//        if (!detail.frame || !detail.frame.buffers || detail.frame.buffers.length <= 0) {
+//            console.error("detail passed to _onComputerVisionData is bad, no buffers");
+//            this._requestComputerVisionData();
+//            return;
+//        }
 		detail.camera.arCamera = true;
 		var orientation = detail.camera.interfaceOrientation;
 		detail.camera.viewMatrix = detail.camera.inverse_viewMatrix;

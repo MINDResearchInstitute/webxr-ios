@@ -1322,14 +1322,17 @@ double lastConvertTime = 0;
                                         };
 //                chromaBufferDictionary[@"buffer"] = self.chromaBase64StringBuffer;
                 
-                NSMutableDictionary *jpegBufferDictionary = [NSMutableDictionary new];
-                jpegBufferDictionary[@"data"] = [self getBase64ImageFromPixelBuffer:frame.capturedImage];
+//                NSMutableDictionary *jpegBufferDictionary = [NSMutableDictionary new];
+//                jpegBufferDictionary[@"data"] = [self getBase64ImageFromPixelBuffer:frame.capturedImage];
                 
-                frameInformation[@"buffers"] = @[lumaBufferDictionary, chromaBufferDictionary, jpegBufferDictionary];
-                frameInformation[@"pixelFormatType"] = [self stringForOSType:CVPixelBufferGetPixelFormatType(frame.capturedImage)];
+//                frameInformation[@"buffers"] = @[lumaBufferDictionary, chromaBufferDictionary, jpegBufferDictionary];
+//                frameInformation[@"pixelFormatType"] = [self stringForOSType:CVPixelBufferGetPixelFormatType(frame.capturedImage)];
+//                frameInformation[@"clinkTag"]
                 
                 cvInformation[@"frame"] = frameInformation;
                 cvInformation[@"camera"] = cameraInformation;
+                cvInformation[@"clinkCode"] = [[self controller] clinkCode];
+                NSLog(@"%@",[[self controller] clinkCode]);
                 
 //                os_unfair_lock_lock(&(lock));
 //                computerVisionData = [cvInformation copy];

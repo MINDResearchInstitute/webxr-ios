@@ -310,6 +310,8 @@ func simpleHash(_ s:String ) -> Int {
     internal var clinkData = [Int32](repeating:0, count: clinkDataSize)
     internal var clinkDataBuffer: MTLBuffer?
     
+    @objc var clinkCode:Dictionary<String, Any> = [:];
+    
 //    override public init() {
 //        super.init()
 //    }
@@ -694,6 +696,11 @@ func simpleHash(_ s:String ) -> Int {
                                     clinkcodeDetected = true;
                                     hLine = Int32(clinkcode.centerXY.x)
                                     vLine = Int32(clinkcode.centerXY.y)
+                                    self.clinkCode = [
+                                        "code": clinkcode.code,
+                                        "hLine": hLine,
+                                        "vLine": vLine
+                                    ]
                                 }
                             }
                         }
