@@ -515,7 +515,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
             pixel = YELLOW_PIXEL;
         }
         else{
-            pixel = pixel*0.3;
+            pixel = pixel;//*0.3;
         }
         //atomic_fetch_add_explicit(&clinkData, 1, memory_order_relaxed);
         //atomic_store_explicit(&clinkData + 2, texture.get_height(), memory_order_relaxed);

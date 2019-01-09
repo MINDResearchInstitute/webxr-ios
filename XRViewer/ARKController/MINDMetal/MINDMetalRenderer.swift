@@ -503,7 +503,7 @@ func simpleHash(_ s:String ) -> Int {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         
-        processClinkData();
+        //processClinkData();
     }
     
     func updateBufferStates() {
@@ -652,7 +652,7 @@ func simpleHash(_ s:String ) -> Int {
     }
     
     func processClinkData(){
-        let t0 = CFAbsoluteTimeGetCurrent()
+        //let t0 = CFAbsoluteTimeGetCurrent()
         hLine = Int32(0)
         vLine = Int32(0)
         
@@ -683,14 +683,18 @@ func simpleHash(_ s:String ) -> Int {
                 let cwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CW]!)
                 let ccwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CCW]!)
                 
-                for p1 in cwPairs{
-                    for p2 in ccwPairs{
-                        if( p1.isCompatable(p2)){
-                            let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferPointer)
-                            if(clinkcode.isValid){
-                                print("Found clinkcode: \(clinkcode.code)")
-                                hLine = Int32(clinkcode.centerXY.x)
-                                vLine = Int32(clinkcode.centerXY.y)
+                clinkcodeDetected = false; //now we'll assume we didn't detect and see if we actually did
+                if(cwPairs.count > 0 && ccwPairs.count > 0){
+                    for p1 in cwPairs{
+                        for p2 in ccwPairs{
+                            if( p1.isCompatable(p2)){
+                                let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferPointer)
+                                if(clinkcode.isValid){
+                                    print("Found clinkcode: \(clinkcode.code)")
+                                    clinkcodeDetected = true;
+                                    hLine = Int32(clinkcode.centerXY.x)
+                                    vLine = Int32(clinkcode.centerXY.y)
+                                }
                             }
                         }
                     }
