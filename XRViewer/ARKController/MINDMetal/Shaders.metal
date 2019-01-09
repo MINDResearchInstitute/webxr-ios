@@ -146,11 +146,11 @@ constant half SAMPLE_HALF_ANGLE = M_PI_H/NSAMPLES;
 constant half SAMPLE_ANGLE = 2*SAMPLE_HALF_ANGLE;
 constant int N_CHANNEL_THRESHOLD = NSAMPLES/5;
 constant int HALF_N_CHANNEL_THRESHOLD = NSAMPLES/10;
-constant uint WIDTH_PIXELS = 1920;
-constant uint HEIGHT_PIXELS = 1080;
+constant uint WIDTH_PIXELS = 1080;//1920;
+constant uint HEIGHT_PIXELS = 1920;//1080;
 constant half ASPECT_RATIO = half(WIDTH_PIXELS)/half(HEIGHT_PIXELS);
 constant half LUM_DIFF_THRESHOLD = 0.05;
-constant half RADIUS_X = 0.009;
+constant half RADIUS_X = 0.016;
 constant half RADIUS_Y = RADIUS_X*ASPECT_RATIO;
 constant half ORIENTATION_RESOLUTION = 10;
 constant half ORIENTATION_XY_SCALE = ORIENTATION_RESOLUTION/2/RADIUS_X;
@@ -297,7 +297,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
         
         //return YELLOW_PIXEL;
         
-        if(xy[0] <= 0.01 || xy[1] <= 0.01 || xy[0] >= 0.99 || xy[1] >= 0.99){
+        if(xy[0] <= RADIUS_X || xy[1] <= RADIUS_Y || xy[0] >= (1-RADIUS_Y) || xy[1] >= (1-RADIUS_X)){
             return YELLOW_PIXEL;
         }
         

@@ -25,9 +25,9 @@ let X_ORIENTATION_AVERAGE = 5
 let Y_ORIENTATION_AVERAGE = 6
 let DOT_SIZE = 7
 let sizeInt32 = MemoryLayout<Int32>.stride
-let NUM_PIX_X = 1920
-let NUM_PIX_Y = 1080
-let BYTES_PER_ROW = 7680
+let NUM_PIX_X = 1080 //1920
+let NUM_PIX_Y = 1920 //1080
+let BYTES_PER_ROW = NUM_PIX_X * 4
 let GRID_RESOLUTION = 1
 var gridDivisionsX = 16*GRID_RESOLUTION
 var gridDivisionsY = 9*GRID_RESOLUTION
@@ -35,8 +35,8 @@ var clinkDataSize = valuesPerCell*gridDivisionsX*gridDivisionsY + numTagTypes
 var numGridCells = gridDivisionsX*gridDivisionsY
 
 //Debug lines. We can remove later:
-var hLine:Int32 = 1920/2
-var vLine:Int32 = 400
+var hLine:Int32 = 1080/2 //1920/2
+var vLine:Int32 = 1920/2 //1080/2
 
 //Corner Types
 let numTagTypes = 30
@@ -503,7 +503,7 @@ func simpleHash(_ s:String ) -> Int {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         
-        //processClinkData();
+        processClinkData();
     }
     
     func updateBufferStates() {
