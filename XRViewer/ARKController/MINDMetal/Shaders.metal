@@ -26,6 +26,7 @@ typedef struct {
 } InstanceUniforms;
 
 constexpr sampler colorSampler(mip_filter::linear, mag_filter::linear, min_filter::linear);
+
 constant float4x4 ycbcrToRGBTransform = float4x4(float4(+1.0000f, +1.0000f, +1.0000f, +0.0000f),
                                                  float4(+0.0000f, -0.3441f, +1.7720f, +0.0000f),
                                                  float4(+1.4020f, -0.7141f, +0.0000f, +0.0000f),
@@ -43,6 +44,13 @@ vertex ImageColorInOut capturedImageVertexTransform(ImageVertex in [[stage_in]])
 }
 
 fragment float4 capturedImageFragmentShader(ImageColorInOut in [[stage_in]],
+                                            texture2d<float, access::sample> textureY [[ texture(1) ]],
+                                            texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
+    float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
+    return ycbcrToRGBTransform * ycbcr;
+}
+
+fragment float4 ycbcrToRGBFragmentShader(ImageColorInOut in [[stage_in]],
                                             texture2d<float, access::sample> textureY [[ texture(1) ]],
                                             texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
     float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
@@ -278,259 +286,247 @@ vertex TextureMappingVertex mapTexture(unsigned int vertex_id [[ vertex_id ]]) {
 }
 
 
-//TODO: Would it help to move to texture2d<half> instead of float?
-
-fragment half4 displayTexture(ImageColorInOut in [[stage_in]],
-                              texture2d<half, access::sample> textureY [[ texture(1) ]],
-                              texture2d<half, access::sample> textureCbCr [[ texture(2) ]],
-                              device atomic_int &clinkData [[buffer(0)]],
-                              
-                              constant   int & hline   [[ buffer(1) ]],
-                              constant   int & vline   [[ buffer(2) ]] ){
-    float2 xy = in.texCoord;
-    
-    if(xy[0] <= 0.01 || xy[1] <= 0.01 || xy[0] >= 0.99 || xy[1] >= 0.99){
-        return BLACK_PIXEL;
-    }
-    
-//    half4 pixel =  half4(texture.sample(tSampler, xy));
-    half4 ycbcr = half4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
-    half4 pixel = ycbcrToRGBTransformHalf4 * ycbcr;
-    
-    half centerLum;
-    half centerChromaticity;
-    getLumChroma(pixel, centerLum, centerChromaticity);
-    half outsideLum;
-    half lumDiff;
-    half outsideChromaticity;
-    half minOutsideLum = 1;
-    half orientationX = 0;
-    half orientationY = 0;
-    int orientationType = 0;
-    bool isDarkCenter = true;
-    bool isClinkCorner3 = false;
-    bool isClinkCorner4 = false;
-    int clinkCornerType = -1;
-    float2 pt;
-    float2 firstPT;
-    half4 ptycbcr;
-    half4 ptrgb;
-    half sinVal;
-    half cosVal;
-    
-    if(centerChromaticity > 0.3 || centerLum > 0.95){
-        isDarkCenter = false;
-    }
-    else{
-        for(half i=0; i<NSAMPLES; i++){
-            sinVal = sincos(i*SAMPLE_HALF_ANGLE,cosVal);
-            pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
-//            ptrgb = half4(texture.sample(tSampler, xy+pt));
-            ptycbcr = half4(textureY.sample(colorSampler, xy+pt).r, textureCbCr.sample(colorSampler, xy+pt).rg, 1.0);
-            ptrgb = ycbcrToRGBTransformHalf4 * ycbcr;
-            getLumChroma(ptrgb, outsideLum, outsideChromaticity);
-            lumDiff = outsideLum - centerLum;
-            if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
-                isDarkCenter = false;
-                break;
-            }
-            else{
-                minOutsideLum = min(minOutsideLum,outsideLum);
-            }
-//            ptrgb = half4(texture.sample(tSampler, xy-pt));
-            ptycbcr = half4(textureY.sample(colorSampler, xy-pt).r, textureCbCr.sample(colorSampler, xy-pt).rg, 1.0);
-            ptrgb = ycbcrToRGBTransformHalf4 * ycbcr;
-            getLumChroma(ptrgb, outsideLum, outsideChromaticity);
-            lumDiff = outsideLum - centerLum;
-            if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
-                isDarkCenter = false;
-                break;
-            }
-            else{
-                minOutsideLum = min(minOutsideLum,outsideLum);
+fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage_in ]],
+                                  texture2d<float, access::sample> texture [[ texture(0) ]],
+                                  device atomic_int &clinkData [[buffer(0)]],
+                                  
+                                  constant   int & hline   [[ buffer(1) ]],
+                                  constant   int & vline   [[ buffer(2) ]] ){
+        
+        float2 xy = mappingVertex.textureCoordinate;
+        
+        //return YELLOW_PIXEL;
+        
+        if(xy[0] <= 0.01 || xy[1] <= 0.01 || xy[0] >= 0.99 || xy[1] >= 0.99){
+            return YELLOW_PIXEL;
+        }
+        
+        half4 pixel =  half4(texture.sample(tSampler, xy));
+        
+        half centerLum;
+        half centerChromaticity;
+        getLumChroma(pixel, centerLum, centerChromaticity);
+        half outsideLum;
+        half lumDiff;
+        half outsideChromaticity;
+        half minOutsideLum = 1;
+        half orientationX = 0;
+        half orientationY = 0;
+        int orientationType = 0;
+        bool isDarkCenter = true;
+        bool isClinkCorner3 = false;
+        bool isClinkCorner4 = false;
+        int clinkCornerType = -1;
+        float2 pt;
+        float2 firstPT;
+        half4 ptrgb;
+        half sinVal;
+        half cosVal;
+        
+        if(centerChromaticity > 0.3 || centerLum > 0.95){
+            isDarkCenter = false;
+        }
+        else{
+            for(half i=0; i<NSAMPLES; i++){
+                sinVal = sincos(i*SAMPLE_HALF_ANGLE,cosVal);
+                pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
+                ptrgb = half4(texture.sample(tSampler, xy+pt));
+                getLumChroma(ptrgb, outsideLum, outsideChromaticity);
+                lumDiff = outsideLum - centerLum;
+                if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
+                    isDarkCenter = false;
+                    break;
+                }
+                else{
+                    minOutsideLum = min(minOutsideLum,outsideLum);
+                }
+                ptrgb = half4(texture.sample(tSampler, xy-pt));
+                getLumChroma(ptrgb, outsideLum, outsideChromaticity);
+                lumDiff = outsideLum - centerLum;
+                if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
+                    isDarkCenter = false;
+                    break;
+                }
+                else{
+                    minOutsideLum = min(minOutsideLum,outsideLum);
+                }
             }
         }
-    }
-    
-    
-    if(isDarkCenter ){
-        int redCount = 0;
-        int blueCount = 0;
-        int yellowCount = 0;
-        int otherCount = 0;
-        bool isYellow = false;
-        int numTransitions = 0;
-        int numClockwiseTransitions = 0;
-        int numYellowOppRed = 0;
-        int numYellowOppBlue = 0;
-        int numYellowOppYellow = 0;
-        int colorType = 0;
-        int lastColorType = 0;
-        int firstColorType = 0;
-        float2 prevPt;
         
-        for(half i=0; i<NSAMPLES; i++){
-            sinVal = sincos(i*SAMPLE_ANGLE,cosVal);
-            pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
-//            ptrgb = half4(texture.sample(tSampler, xy+pt));
-            ptycbcr = half4(textureY.sample(colorSampler, xy+pt).r, textureCbCr.sample(colorSampler, xy+pt).rg, 1.0);
-            ptrgb = ycbcrToRGBTransformHalf4 * ycbcr;
-            colorType = getColorType(ptrgb);
-            isYellow = false;
-            switch(colorType){
-                case RED: redCount++; break;
-                case BLUE: blueCount++; break;
-                case YELLOW: isYellow = true; yellowCount++; break;
-                default: otherCount++;
-            }
-            if(colorType > 0){
-                if(lastColorType == 0){
-                    firstColorType = colorType;
-                    firstPT = pt;
+        
+        if(isDarkCenter ){
+            int redCount = 0;
+            int blueCount = 0;
+            int yellowCount = 0;
+            int otherCount = 0;
+            bool isYellow = false;
+            int numTransitions = 0;
+            int numClockwiseTransitions = 0;
+            int numYellowOppRed = 0;
+            int numYellowOppBlue = 0;
+            int numYellowOppYellow = 0;
+            int colorType = 0;
+            int lastColorType = 0;
+            int firstColorType = 0;
+            float2 prevPt;
+            
+            for(half i=0; i<NSAMPLES; i++){
+                sinVal = sincos(i*SAMPLE_ANGLE,cosVal);
+                pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
+                ptrgb = half4(texture.sample(tSampler, xy+pt));
+                colorType = getColorType(ptrgb);
+                isYellow = false;
+                switch(colorType){
+                    case RED: redCount++; break;
+                    case BLUE: blueCount++; break;
+                    case YELLOW: isYellow = true; yellowCount++; break;
+                    default: otherCount++;
                 }
-                else if(colorType != lastColorType){
-                    numTransitions++;
-                    switch(lastColorType){
-                        case RED: if(colorType==YELLOW){numClockwiseTransitions++;};break;
-                        case BLUE: if(colorType==RED){numClockwiseTransitions++;};break;
-                        case YELLOW:
-                            if(colorType==BLUE){
-                                numClockwiseTransitions++;
-                                if(orientationType == 0){
-                                    orientationType = BLUE;
+                if(colorType > 0){
+                    if(lastColorType == 0){
+                        firstColorType = colorType;
+                        firstPT = pt;
+                    }
+                    else if(colorType != lastColorType){
+                        numTransitions++;
+                        switch(lastColorType){
+                            case RED: if(colorType==YELLOW){numClockwiseTransitions++;};break;
+                            case BLUE: if(colorType==RED){numClockwiseTransitions++;};break;
+                            case YELLOW:
+                                if(colorType==BLUE){
+                                    numClockwiseTransitions++;
+                                    if(orientationType == 0){
+                                        orientationType = BLUE;
+                                        orientationX = (prevPt[0]+pt[0])*ORIENTATION_XY_SCALE;
+                                        orientationY = (prevPt[1]+pt[1])*ORIENTATION_XY_SCALE;
+                                    }
+                                }
+                                else{
+                                    orientationType = RED; //RED beats out BLUE for orientation
                                     orientationX = (prevPt[0]+pt[0])*ORIENTATION_XY_SCALE;
                                     orientationY = (prevPt[1]+pt[1])*ORIENTATION_XY_SCALE;
-                                }
-                            }
-                            else{
-                                orientationType = RED; //RED beats out BLUE for orientation
-                                orientationX = (prevPt[0]+pt[0])*ORIENTATION_XY_SCALE;
-                                orientationY = (prevPt[1]+pt[1])*ORIENTATION_XY_SCALE;
-                            };
-                            break;
+                                };
+                                break;
+                        }
+                    }
+                    lastColorType = colorType;
+                    if(isYellow){
+                        ptrgb = half4(texture.sample(tSampler, xy-pt));
+                        colorType = getColorType(ptrgb);
+                        switch(colorType){
+                            case RED: numYellowOppRed++; break;
+                            case BLUE: numYellowOppBlue++; break;
+                            case YELLOW: numYellowOppYellow++; break;
+                        }
                     }
                 }
-                lastColorType = colorType;
-                if(isYellow){
-//                    ptrgb = half4(texture.sample(tSampler, xy-pt));
-                    ptycbcr = half4(textureY.sample(colorSampler, xy-pt).r, textureCbCr.sample(colorSampler, xy-pt).rg, 1.0);
-                    ptrgb = ycbcrToRGBTransformHalf4 * ycbcr;
-                    colorType = getColorType(ptrgb);
-                    switch(colorType){
-                        case RED: numYellowOppRed++; break;
-                        case BLUE: numYellowOppBlue++; break;
-                        case YELLOW: numYellowOppYellow++; break;
-                    }
-                }
+                prevPt = pt;
             }
-            prevPt = pt;
-        }
-        if(lastColorType != firstColorType){
-            numTransitions++;
-            switch(lastColorType){
-                case RED: if(firstColorType==YELLOW){numClockwiseTransitions++;};break;
-                case BLUE: if(firstColorType==RED){numClockwiseTransitions++;};break;
-                case YELLOW:
-                    if(firstColorType==BLUE){
-                        numClockwiseTransitions++;
-                        if(orientationType == 0){
-                            orientationType = BLUE;
+            if(lastColorType != firstColorType){
+                numTransitions++;
+                switch(lastColorType){
+                    case RED: if(firstColorType==YELLOW){numClockwiseTransitions++;};break;
+                    case BLUE: if(firstColorType==RED){numClockwiseTransitions++;};break;
+                    case YELLOW:
+                        if(firstColorType==BLUE){
+                            numClockwiseTransitions++;
+                            if(orientationType == 0){
+                                orientationType = BLUE;
+                                orientationX = (firstPT[0]+pt[0])*ORIENTATION_XY_SCALE;
+                                orientationY = (firstPT[1]+pt[1])*ORIENTATION_XY_SCALE;
+                            }
+                        }
+                        else{
+                            orientationType = RED; //RED beats out BLUE for orientation
                             orientationX = (firstPT[0]+pt[0])*ORIENTATION_XY_SCALE;
                             orientationY = (firstPT[1]+pt[1])*ORIENTATION_XY_SCALE;
-                        }
-                    }
-                    else{
-                        orientationType = RED; //RED beats out BLUE for orientation
-                        orientationX = (firstPT[0]+pt[0])*ORIENTATION_XY_SCALE;
-                        orientationY = (firstPT[1]+pt[1])*ORIENTATION_XY_SCALE;
-                    };
-                    break;
-            }
-        }
-        if(otherCount < HALF_N_CHANNEL_THRESHOLD && redCount > N_CHANNEL_THRESHOLD && blueCount > N_CHANNEL_THRESHOLD && yellowCount > N_CHANNEL_THRESHOLD){
-            if(numTransitions == 3){
-                if(yellowCount <= redCount || yellowCount <= blueCount){
-                    isClinkCorner3 = true;
-                    if(numClockwiseTransitions == 3){
-                        if(numYellowOppRed > numYellowOppBlue && numYellowOppBlue < HALF_N_CHANNEL_THRESHOLD){
-                            clinkCornerType = BOARD_3Part_CW;
-                        }
-                        else{
-                            clinkCornerType = CODE_3Part_CW;
-                        }
-                    }
-                    else{
-                        if(numYellowOppBlue > numYellowOppRed && numYellowOppRed < HALF_N_CHANNEL_THRESHOLD){
-                            clinkCornerType = BOARD_3Part_CCW;
-                        }
-                        else{
-                            clinkCornerType = CODE_3Part_CCW;
-                        }
-                    }
+                        };
+                        break;
                 }
             }
-            else if(numTransitions == 4){
-                isClinkCorner4 = true;
-                if(yellowCount < redCount && blueCount < redCount && numYellowOppBlue >= N_CHANNEL_THRESHOLD){
-                    clinkCornerType = BOARD_4Part_RR;
+            if(otherCount < HALF_N_CHANNEL_THRESHOLD && redCount > N_CHANNEL_THRESHOLD && blueCount > N_CHANNEL_THRESHOLD && yellowCount > N_CHANNEL_THRESHOLD){
+                if(numTransitions == 3){
+                    if(yellowCount <= redCount || yellowCount <= blueCount){
+                        isClinkCorner3 = true;
+                        if(numClockwiseTransitions == 3){
+                            if(numYellowOppRed > numYellowOppBlue && numYellowOppBlue < HALF_N_CHANNEL_THRESHOLD){
+                                clinkCornerType = BOARD_3Part_CW;
+                            }
+                            else{
+                                clinkCornerType = CODE_3Part_CW;
+                            }
+                        }
+                        else{
+                            if(numYellowOppBlue > numYellowOppRed && numYellowOppRed < HALF_N_CHANNEL_THRESHOLD){
+                                clinkCornerType = BOARD_3Part_CCW;
+                            }
+                            else{
+                                clinkCornerType = CODE_3Part_CCW;
+                            }
+                        }
+                    }
                 }
-                else if(yellowCount < blueCount && redCount < blueCount && numYellowOppRed >= N_CHANNEL_THRESHOLD){
-                    clinkCornerType = BOARD_4Part_BB;
-                }
-                else if( redCount < yellowCount && blueCount < yellowCount && numYellowOppYellow >= N_CHANNEL_THRESHOLD){
-                    clinkCornerType = MARKER_4Part_YY;
+                else if(numTransitions == 4){
+                    isClinkCorner4 = true;
+                    if(yellowCount < redCount && blueCount < redCount && numYellowOppBlue >= N_CHANNEL_THRESHOLD){
+                        clinkCornerType = BOARD_4Part_RR;
+                    }
+                    else if(yellowCount < blueCount && redCount < blueCount && numYellowOppRed >= N_CHANNEL_THRESHOLD){
+                        clinkCornerType = BOARD_4Part_BB;
+                    }
+                    else if( redCount < yellowCount && blueCount < yellowCount && numYellowOppYellow >= N_CHANNEL_THRESHOLD){
+                        clinkCornerType = MARKER_4Part_YY;
+                    }
                 }
             }
         }
-    }
-    
-    if(clinkCornerType > -1){
-        pixel = half4(1,1,0,1);
-        atomic_fetch_add_explicit(&clinkData + clinkCornerType, 1, memory_order_relaxed);
-        float4 dotXYSizeBalance = float4(1,1,1,1); //measureDotXYSizeBalance(texture, xy, centerLum );
-        float newX = dotXYSizeBalance[0];
-        float newY = dotXYSizeBalance[1];
-        int gridCellX = newX*GRID_DIVS_X;
-        int gridCellY = newY*GRID_DIVS_Y;
-        int gridCellIndex = GRID_DIVS_X*gridCellY + gridCellX;
-        int dataOffset = NUM_TAG_TYPES + NUM_METRICS_PER_CELL*gridCellIndex;
-        int pixX = round(WIDTH_PIXELS*newX);
-        int pixY = round(HEIGHT_PIXELS*newY);
-        int weight = max(1,int(round(dotXYSizeBalance[2]*dotXYSizeBalance[3]*dotXYSizeBalance[3])));
-        int typeFlag = 1 << clinkCornerType;
-        int typeAvg = weight * clinkCornerType;
-        int xCoordAvg = weight * pixX;
-        int yCoordAvg = weight * pixY;
         
-        int xOrientationAverage = round(orientationX*half(weight));
-        int yOrientationAverage = round(orientationY*half(weight));
-        int dotSize = dotXYSizeBalance[2]*weight;
+        if(clinkCornerType > -1){
+            pixel = half4(1,1,0,1);
+            atomic_fetch_add_explicit(&clinkData + clinkCornerType, 1, memory_order_relaxed);
+            float4 dotXYSizeBalance = measureDotXYSizeBalance(texture, xy, centerLum );
+            float newX = dotXYSizeBalance[0];
+            float newY = dotXYSizeBalance[1];
+            int gridCellX = newX*GRID_DIVS_X;
+            int gridCellY = newY*GRID_DIVS_Y;
+            int gridCellIndex = GRID_DIVS_X*gridCellY + gridCellX;
+            int dataOffset = NUM_TAG_TYPES + NUM_METRICS_PER_CELL*gridCellIndex;
+            int pixX = round(WIDTH_PIXELS*newX);
+            int pixY = round(HEIGHT_PIXELS*newY);
+            int weight = max(1,int(round(dotXYSizeBalance[2]*dotXYSizeBalance[3]*dotXYSizeBalance[3])));
+            int typeFlag = 1 << clinkCornerType;
+            int typeAvg = weight * clinkCornerType;
+            int xCoordAvg = weight * pixX;
+            int yCoordAvg = weight * pixY;
+            
+            int xOrientationAverage = round(orientationX*half(weight));
+            int yOrientationAverage = round(orientationY*half(weight));
+            int dotSize = dotXYSizeBalance[2]*weight;
+            
+            atomic_fetch_add_explicit(&clinkData + dataOffset + TOTAL_WEIGHT, weight, memory_order_relaxed);
+            atomic_fetch_or_explicit(&clinkData + dataOffset + TYPE_FLAGS, typeFlag, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + TYPE_AVERAGE, typeAvg, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + X_COORD_AVERAGE, xCoordAvg, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + Y_COORD_AVERAGE, yCoordAvg, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + X_ORIENTATION_AVERAGE, xOrientationAverage, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + Y_ORIENTATION_AVERAGE, yOrientationAverage, memory_order_relaxed);
+            atomic_fetch_add_explicit(&clinkData + dataOffset + DOT_SIZE, dotSize, memory_order_relaxed);
+            
+            pixel = YELLOW_PIXEL;
+        }
+        else{
+            pixel = pixel*0.3;
+        }
+        //atomic_fetch_add_explicit(&clinkData, 1, memory_order_relaxed);
+        //atomic_store_explicit(&clinkData + 2, texture.get_height(), memory_order_relaxed);
         
-        atomic_fetch_add_explicit(&clinkData + dataOffset + TOTAL_WEIGHT, weight, memory_order_relaxed);
-        atomic_fetch_or_explicit(&clinkData + dataOffset + TYPE_FLAGS, typeFlag, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + TYPE_AVERAGE, typeAvg, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + X_COORD_AVERAGE, xCoordAvg, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + Y_COORD_AVERAGE, yCoordAvg, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + X_ORIENTATION_AVERAGE, xOrientationAverage, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + Y_ORIENTATION_AVERAGE, yOrientationAverage, memory_order_relaxed);
-        atomic_fetch_add_explicit(&clinkData + dataOffset + DOT_SIZE, dotSize, memory_order_relaxed);
+        if(floor(xy[0]*WIDTH_PIXELS) == hline){
+            return half4(0,1,1,1);
+        }
         
-        pixel = YELLOW_PIXEL;
+        if(floor(xy[1]*HEIGHT_PIXELS) == vline){
+            return half4(0,1,1,1);
+        }
+        
+        return pixel;
     }
-    else{
-        pixel = pixel*0.3;
-    }
-    //atomic_fetch_add_explicit(&clinkData, 1, memory_order_relaxed);
-    //atomic_store_explicit(&clinkData + 2, texture.get_height(), memory_order_relaxed);
-    
-    if(floor(xy[0]*WIDTH_PIXELS) == hline){
-        return half4(0,1,1,1);
-    }
-    
-    if(floor(xy[1]*HEIGHT_PIXELS) == vline){
-        return half4(0,1,1,1);
-    }
-    
-    return pixel;
-}
-

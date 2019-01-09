@@ -259,6 +259,7 @@ func simpleHash(_ s:String ) -> Int {
     var anchorUniformBuffer: MTLBuffer!
     var debugUniformBuffer: MTLBuffer!
     var imagePlaneVertexBuffer: MTLBuffer!
+    var convertToRGBPipelineState: MTLRenderPipelineState!
     var capturedImagePipelineState: MTLRenderPipelineState!
     var capturedImageDepthState: MTLDepthStencilState!
     var anchorPipelineState: MTLRenderPipelineState!
@@ -267,6 +268,8 @@ func simpleHash(_ s:String ) -> Int {
     var debugDepthState: MTLDepthStencilState!
     var capturedImageTextureY: MTLTexture!
     var capturedImageTextureCbCr: MTLTexture!
+    var convertedImageTextureRGB: MTLTexture!
+    var conversionPassDescriptor: MTLRenderPassDescriptor!
     var capturedImageTextureCache: CVMetalTextureCache!
     var geometryVertexDescriptor: MTLVertexDescriptor!
     var mesh: MTKMesh!
@@ -325,6 +328,23 @@ func simpleHash(_ s:String ) -> Int {
     }
     
     func setupPipeline() {
+        
+        //Intermediate Texture to store RGB texture and pass into clink shader
+        let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                                         width: NUM_PIX_X,
+                                                                         height: NUM_PIX_Y,
+                                                                         mipmapped: false)
+        textureDescriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+        convertedImageTextureRGB = device.makeTexture(descriptor: textureDescriptor)!
+        
+        //let rpd = renderDestination.currentRenderPassDescriptor
+        
+        conversionPassDescriptor = MTLRenderPassDescriptor()
+        conversionPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1)
+        conversionPassDescriptor.colorAttachments[0].loadAction = .load
+        conversionPassDescriptor.colorAttachments[0].storeAction = .store
+        conversionPassDescriptor.colorAttachments[0].texture = convertedImageTextureRGB
+        
         renderDestination.depthStencilPixelFormat = .depth32Float_stencil8
         renderDestination.colorPixelFormat = .bgra8Unorm
         renderDestination.sampleCount = 1
@@ -336,8 +356,8 @@ func simpleHash(_ s:String ) -> Int {
         let imagePlaneVertexDataCount = planeVertexData.count * MemoryLayout<Float>.size
         imagePlaneVertexBuffer = device.makeBuffer(bytes: planeVertexData, length: imagePlaneVertexDataCount, options: [])
         let defaultLibrary = device.makeDefaultLibrary()!
+        
         let capturedImageVertexFunction = defaultLibrary.makeFunction(name: "capturedImageVertexTransform")!
-        let capturedImageFragmentFunction = defaultLibrary.makeFunction(name: "displayTexture")!
         let imagePlaneVertexDescriptor = MTLVertexDescriptor()
         imagePlaneVertexDescriptor.attributes[0].format = .float2
         imagePlaneVertexDescriptor.attributes[0].offset = 0
@@ -348,10 +368,34 @@ func simpleHash(_ s:String ) -> Int {
         imagePlaneVertexDescriptor.layouts[0].stride = 16
         imagePlaneVertexDescriptor.layouts[0].stepRate = 1
         imagePlaneVertexDescriptor.layouts[0].stepFunction = .perVertex
+        
+        let convertToRGBFragmentFunction = defaultLibrary.makeFunction(name: "ycbcrToRGBFragmentShader")!
+        
+        let convertToRGBPipelineStateDescriptor = MTLRenderPipelineDescriptor()
+        convertToRGBPipelineStateDescriptor.label = "ConvertToRGBPipeline"
+        convertToRGBPipelineStateDescriptor.vertexFunction = capturedImageVertexFunction
+        convertToRGBPipelineStateDescriptor.fragmentFunction = convertToRGBFragmentFunction
+        convertToRGBPipelineStateDescriptor.vertexDescriptor = imagePlaneVertexDescriptor
+        convertToRGBPipelineStateDescriptor.sampleCount = 1
+        convertToRGBPipelineStateDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        convertToRGBPipelineStateDescriptor.depthAttachmentPixelFormat = .invalid
+        do { try convertToRGBPipelineState = device.makeRenderPipelineState(descriptor: convertToRGBPipelineStateDescriptor) }
+        catch let error { print("Failed to created convertToRGB pipeline state, error \(error)") }
+        
+        
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        pipelineDescriptor.sampleCount = 1
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        pipelineDescriptor.depthAttachmentPixelFormat = .invalid
+        
+        
+        let clinkVertexFunction = defaultLibrary.makeFunction(name: "mapTexture")
+        
+        let capturedImageFragmentFunction = defaultLibrary.makeFunction(name: "clinkFragmentShader")!
         let capturedImagePipelineStateDescriptor = MTLRenderPipelineDescriptor()
         capturedImagePipelineStateDescriptor.label = "MyCapturedImagePipeline"
         capturedImagePipelineStateDescriptor.sampleCount = renderDestination.sampleCount
-        capturedImagePipelineStateDescriptor.vertexFunction = capturedImageVertexFunction
+        capturedImagePipelineStateDescriptor.vertexFunction = clinkVertexFunction
         capturedImagePipelineStateDescriptor.fragmentFunction = capturedImageFragmentFunction
         capturedImagePipelineStateDescriptor.vertexDescriptor = imagePlaneVertexDescriptor
         capturedImagePipelineStateDescriptor.colorAttachments[0].pixelFormat = renderDestination.colorPixelFormat
@@ -407,10 +451,6 @@ func simpleHash(_ s:String ) -> Int {
         } catch let error { print(error) }
         debugDepthState = device.makeDepthStencilState(descriptor: anchorDepthStateDescriptor)
         commandQueue = device.makeCommandQueue()
-        
-        clinkDataBuffer = device.makeBuffer(bytes: &clinkData,
-                                            length: clinkDataSize * sizeInt32,
-                                            options: .storageModeShared)
     }
     
     func setupAssets() {
@@ -443,15 +483,27 @@ func simpleHash(_ s:String ) -> Int {
         }
         updateBufferStates()
         updateGameState()
-        guard let passDescriptor = renderDestination.currentRenderPassDescriptor,
+        
+        clinkDataBuffer = device.makeBuffer(bytes: &clinkData,
+                                            length: clinkDataSize * sizeInt32,
+                                            options: .storageModeShared)
+        
+        guard let conversionRenderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: conversionPassDescriptor) else { return }
+        convertTextureToRGB(renderEncoder: conversionRenderEncoder)
+        conversionRenderEncoder.endEncoding()
+        
+        guard let renderPassDescriptor = renderDestination.currentRenderPassDescriptor,
             let drawable = renderDestination.currentDrawable else { return }
-        guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: passDescriptor) else { return }
-        drawCapturedImage(renderEncoder: renderEncoder)
-        drawAnchorGeometry(renderEncoder: renderEncoder)
-        drawDebugGeometry(renderEncoder: renderEncoder)
+        guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else { return }
+        detectAndRenderClinkData(renderEncoder: renderEncoder)
+        //drawAnchorGeometry(renderEncoder: renderEncoder)
+        //drawDebugGeometry(renderEncoder: renderEncoder)
         renderEncoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        
+        processClinkData();
     }
     
     func updateBufferStates() {
@@ -565,23 +617,42 @@ func simpleHash(_ s:String ) -> Int {
         }
     }
     
-    func drawCapturedImage(renderEncoder: MTLRenderCommandEncoder) {
-        let t0 = CFAbsoluteTimeGetCurrent()
+    
+    
+    
+    func convertTextureToRGB(renderEncoder: MTLRenderCommandEncoder) {
+        guard capturedImageTextureY != nil && capturedImageTextureCbCr != nil && convertedImageTextureRGB != nil else { return }
+        renderEncoder.pushDebugGroup("convertTextureToRGB")
+        renderEncoder.setCullMode(.none)
+        renderEncoder.setRenderPipelineState(convertToRGBPipelineState)
+        renderEncoder.setFragmentTexture(capturedImageTextureY, index: 1)
+        renderEncoder.setFragmentTexture(capturedImageTextureCbCr, index: 2)
+        renderEncoder.setDepthStencilState(capturedImageDepthState)
+        renderEncoder.setVertexBuffer(imagePlaneVertexBuffer, offset: 0, index: 0)
+        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        renderEncoder.popDebugGroup()
+    }
+    
+    func detectAndRenderClinkData(renderEncoder: MTLRenderCommandEncoder ) {
+        
         
         guard capturedImageTextureY != nil && capturedImageTextureCbCr != nil else { return }
-        renderEncoder.pushDebugGroup("DrawCapturedImage")
+        renderEncoder.pushDebugGroup("detectAndRenderClinkData")
         renderEncoder.setCullMode(.none)
         renderEncoder.setRenderPipelineState(capturedImagePipelineState)
         renderEncoder.setDepthStencilState(capturedImageDepthState)
         renderEncoder.setVertexBuffer(imagePlaneVertexBuffer, offset: 0, index: 0)
-        renderEncoder.setFragmentTexture(capturedImageTextureY, index: 1)
-        renderEncoder.setFragmentTexture(capturedImageTextureCbCr, index: 2)
+        renderEncoder.setFragmentTexture(convertedImageTextureRGB, index: 0)
         renderEncoder.setFragmentBuffer(clinkDataBuffer, offset: 0, index: 0)
         renderEncoder.setFragmentBytes(&hLine, length: sizeInt32, index: 1)
         renderEncoder.setFragmentBytes(&vLine, length: sizeInt32, index: 2)
         renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         renderEncoder.popDebugGroup()
         
+    }
+    
+    func processClinkData(){
+        let t0 = CFAbsoluteTimeGetCurrent()
         hLine = Int32(0)
         vLine = Int32(0)
         
@@ -591,6 +662,14 @@ func simpleHash(_ s:String ) -> Int {
         var clinkcodeDetected = (data[CODE_3Part_CW] > 1 && data[CODE_3Part_CCW] > 1)
         
         if(clinkboardDetected || clinkcodeDetected) {
+            
+            let bytesPerRow = 4*NUM_PIX_X
+            let length = NUM_PIX_Y*bytesPerRow
+            let rgbaBytes = [UInt8](repeating: 0, count: length)
+            let pixelBufferPointer = UnsafeMutableRawPointer(mutating: rgbaBytes)
+            let region = MTLRegionMake2D(0, 0, NUM_PIX_X, NUM_PIX_Y)
+            convertedImageTextureRGB.getBytes(pixelBufferPointer, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+            
 //            let imageBuffer = CMSampleBufferGetImageBuffer(self.sampleBuffer!)
 //            CVPixelBufferLockBaseAddress(imageBuffer!,[])
 //            let baseAddress = CVPixelBufferGetBaseAddress(imageBuffer!)
@@ -600,29 +679,29 @@ func simpleHash(_ s:String ) -> Int {
             
             clinkcodeDetected = clinkcodeDetected && tagsByType[CODE_3Part_CW] != nil && tagsByType[CODE_3Part_CCW] != nil && tagsByType[CODE_3Part_CW]!.count > 1 && tagsByType[CODE_3Part_CW]!.count > 1
             
-//            if(clinkcodeDetected){
-//                let cwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CW]!)
-//                let ccwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CCW]!)
-//                
-//                for p1 in cwPairs{
-//                    for p2 in ccwPairs{
-//                        if( p1.isCompatable(p2)){
-//                            let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:baseAddress!)
-//                            if(clinkcode.isValid){
-//                                print("Found clinkcode: \(clinkcode.code)")
-//                                hLine = Int32(clinkcode.centerXY.x)
-//                                vLine = Int32(clinkcode.centerXY.y)
-//                            }
-//                        }
-//                    }
-//                }
-//            }
+            if(clinkcodeDetected){
+                let cwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CW]!)
+                let ccwPairs = generateOppositeTagPairs(tagsByType[CODE_3Part_CCW]!)
+                
+                for p1 in cwPairs{
+                    for p2 in ccwPairs{
+                        if( p1.isCompatable(p2)){
+                            let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferPointer)
+                            if(clinkcode.isValid){
+                                print("Found clinkcode: \(clinkcode.code)")
+                                hLine = Int32(clinkcode.centerXY.x)
+                                vLine = Int32(clinkcode.centerXY.y)
+                            }
+                        }
+                    }
+                }
+            }
             
-//            CVPixelBufferUnlockBaseAddress(imageBuffer!,[])
+            //CVPixelBufferUnlockBaseAddress(imageBuffer!,[])
         }
         
         let t1 = CFAbsoluteTimeGetCurrent()
-        print("\(t1-t0)secs\n")
+        //print("\(t1-t0)secs\n")
     }
     
     func drawAnchorGeometry(renderEncoder: MTLRenderCommandEncoder) {
