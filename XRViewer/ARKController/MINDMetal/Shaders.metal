@@ -1,4 +1,3 @@
-
 #include <metal_stdlib>
 using namespace metal;
 
@@ -10,136 +9,30 @@ typedef struct {
 typedef struct {
     float4 position [[position]];
     float2 texCoord;
-} ImageColorInOut;
+} TextureMappingInOut;
 
 typedef struct {
     float4x4 projectionMatrix;
     float4x4 viewMatrix;
-    float3 ambientLightColor;
-    float3 directionalLightDirection;
-    float3 directionalLightColor;
-    float materialShininess;
 } SharedUniforms;
 
-typedef struct {
-    float4x4 modelMatrix;
-} InstanceUniforms;
 
-constexpr sampler colorSampler(mip_filter::linear, mag_filter::linear, min_filter::linear);
+constant float4x4 directRenderedCoordinates = float4x4(float4( -1.0, -1.0, 0.0, 1.0 ),
+                                        float4(  1.0, -1.0, 0.0, 1.0 ),
+                                        float4( -1.0,  1.0, 0.0, 1.0 ),
+                                        float4(  1.0,  1.0, 0.0, 1.0 ));
+
+constant float4x2 directTextureCoordinates = float4x2(float2( 0.0, 1.0 ),
+                                       float2( 1.0, 1.0 ),
+                                       float2( 0.0, 0.0 ),
+                                       float2( 1.0, 0.0 ));
+
+constexpr sampler colorSampler(address::clamp_to_edge, mip_filter::linear, mag_filter::linear, min_filter::linear);
 
 constant float4x4 ycbcrToRGBTransform = float4x4(float4(+1.0000f, +1.0000f, +1.0000f, +0.0000f),
                                                  float4(+0.0000f, -0.3441f, +1.7720f, +0.0000f),
                                                  float4(+1.4020f, -0.7141f, +0.0000f, +0.0000f),
                                                  float4(-0.7010f, +0.5291f, -0.8860f, +1.0000f));
-constant half4x4 ycbcrToRGBTransformHalf4 = half4x4(half4(+1.0000f, +1.0000f, +1.0000f, +0.0000f),
-                                                 half4(+0.0000f, -0.3441f, +1.7720f, +0.0000f),
-                                                 half4(+1.4020f, -0.7141f, +0.0000f, +0.0000f),
-                                                 half4(-0.7010f, +0.5291f, -0.8860f, +1.0000f));
-
-vertex ImageColorInOut capturedImageVertexTransform(ImageVertex in [[stage_in]]) {
-    ImageColorInOut out;
-    out.position = float4(in.position, 0.0, 1.0);
-    out.texCoord = in.texCoord;
-    return out;
-}
-
-fragment float4 capturedImageFragmentShader(ImageColorInOut in [[stage_in]],
-                                            texture2d<float, access::sample> textureY [[ texture(1) ]],
-                                            texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
-    float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
-    return ycbcrToRGBTransform * ycbcr;
-}
-
-fragment float4 ycbcrToRGBFragmentShader(ImageColorInOut in [[stage_in]],
-                                            texture2d<float, access::sample> textureY [[ texture(1) ]],
-                                            texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
-    float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
-    return ycbcrToRGBTransform * ycbcr;
-}
-
-typedef struct {
-    float3 position [[attribute(0)]];
-    float2 texCoord [[attribute(1)]];
-    half3 normal    [[attribute(2)]];
-} Vertex;
-
-typedef struct {
-    float4 position [[position]];
-    float4 color;
-    half3  eyePosition;
-    half3  normal;
-} ColorInOut;
-
-vertex ColorInOut anchorGeometryVertexTransform(Vertex in [[stage_in]],
-                                                constant SharedUniforms &sharedUniforms [[ buffer(3) ]],
-                                                constant InstanceUniforms *instanceUniforms [[ buffer(2) ]],
-                                                ushort vid [[vertex_id]],
-                                                ushort iid [[instance_id]]) {
-    ColorInOut out;
-    float4 position = float4(in.position, 1.0);
-    float4x4 modelMatrix = instanceUniforms[iid].modelMatrix;
-    float4x4 modelViewMatrix = sharedUniforms.viewMatrix * modelMatrix;
-    out.position = sharedUniforms.projectionMatrix * modelViewMatrix * position;
-    ushort colorID = vid / 4 % 6;
-    out.color = colorID == 0 ? float4(0.0, 1.0, 0.0, 1.0)  // Right face
-    : colorID == 1 ? float4(1.0, 0.0, 0.0, 1.0)  // Left face
-    : colorID == 2 ? float4(0.0, 0.0, 1.0, 1.0)  // Top face
-    : colorID == 3 ? float4(1.0, 0.5, 0.0, 1.0)  // Bottom face
-    : colorID == 4 ? float4(1.0, 1.0, 0.0, 1.0)  // Back face
-    :                float4(1.0, 1.0, 1.0, 1.0); // Front face
-    out.eyePosition = half3((modelViewMatrix * position).xyz);
-    float4 normal = modelMatrix * float4(in.normal.x, in.normal.y, in.normal.z, 0.0f);
-    out.normal = normalize(half3(normal.xyz));
-    return out;
-}
-
-fragment float4 anchorGeometryFragmentLighting(ColorInOut in [[stage_in]],
-                                               constant SharedUniforms &uniforms [[ buffer(3) ]]) {
-    float3 normal = float3(in.normal);
-    float3 directionalContribution = float3(0);
-    {
-        float nDotL = saturate(dot(normal, -uniforms.directionalLightDirection));
-        float3 diffuseTerm = uniforms.directionalLightColor * nDotL;
-        float3 halfwayVector = normalize(-uniforms.directionalLightDirection - float3(in.eyePosition));
-        float reflectionAngle = saturate(dot(normal, halfwayVector));
-        float specularIntensity = saturate(powr(reflectionAngle, uniforms.materialShininess));
-        float3 specularTerm = uniforms.directionalLightColor * specularIntensity;
-        directionalContribution = diffuseTerm + specularTerm;
-    }
-    float3 ambientContribution = uniforms.ambientLightColor;
-    float3 lightContributions = ambientContribution + directionalContribution;
-    float3 color = in.color.rgb * lightContributions;
-    return float4(color, in.color.w);
-}
-
-typedef struct {
-    float3 position [[attribute(0)]];
-} DebugVertex;
-
-vertex float4 vertexDebugPlane(DebugVertex in [[ stage_in]],
-                               constant SharedUniforms &sharedUniforms [[ buffer(3) ]],
-                               constant InstanceUniforms *instanceUniforms [[ buffer(2) ]],
-                               ushort vid [[vertex_id]],
-                               ushort iid [[instance_id]]) {
-    float4 position = float4(in.position, 1.0);
-    float4x4 modelMatrix = instanceUniforms[iid].modelMatrix;
-    float4x4 modelViewMatrix = sharedUniforms.viewMatrix * modelMatrix;
-    float4 outPosition = sharedUniforms.projectionMatrix * modelViewMatrix * position;
-    return outPosition;
-}
-
-fragment float4 fragmentDebugPlane() {
-    return float4(253.0/255.0, 108.0/255.0, 158.0/255.0, 1);
-}
-
-
-typedef struct {
-    float4 renderedCoordinate [[position]];
-    float2 textureCoordinate;
-} TextureMappingVertex;
-
-
-constexpr sampler tSampler(address::clamp_to_edge, filter::linear);
 
 constant int NSAMPLES = 23;
 constant half SAMPLE_HALF_ANGLE = M_PI_H/NSAMPLES;
@@ -157,8 +50,6 @@ constant half ORIENTATION_XY_SCALE = ORIENTATION_RESOLUTION/2/RADIUS_X;
 constant uint GRID_RESOLUTION = 1;
 constant uint GRID_DIVS_X = 16*GRID_RESOLUTION;
 constant uint GRID_DIVS_Y = 9*GRID_RESOLUTION;
-constant uint PIX_PER_CELL_X = WIDTH_PIXELS / GRID_DIVS_X;
-constant uint PIX_PER_CELL_Y = HEIGHT_PIXELS / GRID_DIVS_Y;
 
 
 //COLORS
@@ -240,14 +131,14 @@ half2 measureDotBalance_Axis(texture2d<float, access::sample> texture, float2 xy
     half rB = 0;
     half i;
     for(i=1; i<10; i++){
-        lum = getLum(half4(texture.sample(tSampler, xy-deltaXY*i)));
+        lum = getLum(half4(texture.sample(colorSampler, xy-deltaXY*i)));
         if( (lum - centerLum) >= LUM_DIFF_THRESHOLD){
             rA = i;
             break;
         }
     }
     for(i=1; i<10; i++){
-        lum = getLum(half4(texture.sample(tSampler, xy+deltaXY*i)));
+        lum = getLum(half4(texture.sample(colorSampler, xy+deltaXY*i)));
         if( (lum - centerLum) >= LUM_DIFF_THRESHOLD){
             rB = i;
             break;
@@ -268,32 +159,40 @@ float4 measureDotXYSizeBalance(texture2d<float, access::sample> texture, float2 
     return float4(newX,newY,float(dotSize),float(dotBalance));
 }
 
-vertex TextureMappingVertex mapTexture(unsigned int vertex_id [[ vertex_id ]]) {
-    float4x4 renderedCoordinates = float4x4(float4( -1.0, -1.0, 0.0, 1.0 ),
-                                            float4(  1.0, -1.0, 0.0, 1.0 ),
-                                            float4( -1.0,  1.0, 0.0, 1.0 ),
-                                            float4(  1.0,  1.0, 0.0, 1.0 ));
-    
-    float4x2 textureCoordinates = float4x2(float2( 0.0, 1.0 ),
-                                           float2( 1.0, 1.0 ),
-                                           float2( 0.0, 0.0 ),
-                                           float2( 1.0, 0.0 ));
-    TextureMappingVertex outVertex;
-    outVertex.renderedCoordinate = renderedCoordinates[vertex_id];
-    outVertex.textureCoordinate = textureCoordinates[vertex_id];
+/* ************************** */
+/*            SHADERS         */
+/* ************************** */
+
+vertex TextureMappingInOut transformingVertexShader(ImageVertex in [[stage_in]]) {
+    TextureMappingInOut out;
+    out.position = float4(in.position, 0.0, 1.0);
+    out.texCoord = in.texCoord;
+    return out;
+}
+
+vertex TextureMappingInOut directVertexShader(unsigned int vertex_id [[ vertex_id ]]) {
+    TextureMappingInOut outVertex;
+    outVertex.position = directRenderedCoordinates[vertex_id];
+    outVertex.texCoord = directTextureCoordinates[vertex_id];
     
     return outVertex;
 }
 
+fragment float4 ycbcrToRGBFragmentShader(TextureMappingInOut in [[stage_in]],
+                                         texture2d<float, access::sample> textureY [[ texture(1) ]],
+                                         texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
+    float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
+    return ycbcrToRGBTransform * ycbcr;
+}
 
-fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage_in ]],
+fragment half4 clinkFragmentShader(  TextureMappingInOut mappingVertex [[ stage_in ]],
                                   texture2d<float, access::sample> texture [[ texture(0) ]],
                                   device atomic_int &clinkData [[buffer(0)]],
                                   
                                   constant   int & hline   [[ buffer(1) ]],
                                   constant   int & vline   [[ buffer(2) ]] ){
         
-        float2 xy = mappingVertex.textureCoordinate;
+        float2 xy = mappingVertex.texCoord;
         
         //return YELLOW_PIXEL;
         
@@ -301,7 +200,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
             return YELLOW_PIXEL;
         }
         
-        half4 pixel =  half4(texture.sample(tSampler, xy));
+        half4 pixel =  half4(texture.sample(colorSampler, xy));
         
         half centerLum;
         half centerChromaticity;
@@ -330,7 +229,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
             for(half i=0; i<NSAMPLES; i++){
                 sinVal = sincos(i*SAMPLE_HALF_ANGLE,cosVal);
                 pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
-                ptrgb = half4(texture.sample(tSampler, xy+pt));
+                ptrgb = half4(texture.sample(colorSampler, xy+pt));
                 getLumChroma(ptrgb, outsideLum, outsideChromaticity);
                 lumDiff = outsideLum - centerLum;
                 if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
@@ -340,7 +239,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
                 else{
                     minOutsideLum = min(minOutsideLum,outsideLum);
                 }
-                ptrgb = half4(texture.sample(tSampler, xy-pt));
+                ptrgb = half4(texture.sample(colorSampler, xy-pt));
                 getLumChroma(ptrgb, outsideLum, outsideChromaticity);
                 lumDiff = outsideLum - centerLum;
                 if(lumDiff < LUM_DIFF_THRESHOLD || outsideChromaticity < centerChromaticity){
@@ -373,7 +272,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
             for(half i=0; i<NSAMPLES; i++){
                 sinVal = sincos(i*SAMPLE_ANGLE,cosVal);
                 pt = float2(RADIUS_X*cosVal,RADIUS_Y*sinVal);
-                ptrgb = half4(texture.sample(tSampler, xy+pt));
+                ptrgb = half4(texture.sample(colorSampler, xy+pt));
                 colorType = getColorType(ptrgb);
                 isYellow = false;
                 switch(colorType){
@@ -411,7 +310,7 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
                     }
                     lastColorType = colorType;
                     if(isYellow){
-                        ptrgb = half4(texture.sample(tSampler, xy-pt));
+                        ptrgb = half4(texture.sample(colorSampler, xy-pt));
                         colorType = getColorType(ptrgb);
                         switch(colorType){
                             case RED: numYellowOppRed++; break;
@@ -517,8 +416,6 @@ fragment half4 clinkFragmentShader(  TextureMappingVertex mappingVertex [[ stage
         else{
             pixel = pixel;//*0.3;
         }
-        //atomic_fetch_add_explicit(&clinkData, 1, memory_order_relaxed);
-        //atomic_store_explicit(&clinkData + 2, texture.get_height(), memory_order_relaxed);
         
         if(floor(xy[0]*WIDTH_PIXELS) == hline){
             return half4(0,1,1,1);
