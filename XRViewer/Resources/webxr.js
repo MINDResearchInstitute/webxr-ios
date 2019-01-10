@@ -5732,7 +5732,7 @@ class ARKitWrapper extends EventTarget {
 			};
 		}
 		window['onComputerVisionData'] = (detail) => {
-			this._onComputerVisionData(detail);
+//            this._onComputerVisionData(detail);
 		};
 		window['setNativeTime'] = (detail) => {
 			this._timeOffsets.push (( performance || Date ).now() - detail.nativeTime);
