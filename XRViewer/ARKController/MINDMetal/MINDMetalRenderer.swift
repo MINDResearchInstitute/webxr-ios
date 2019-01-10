@@ -143,21 +143,19 @@ struct ClinkCode{
         var avgLum:Int = 0
         for i in 0..<6 {
             var pt = projectPoint(m:m , pt: (x:Double(i), y: Double(i)))
-            var rgb = readRBGFromPixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
-            guard rgb != nil else{
+            var lum = readLuminancePixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
+            guard lum != nil else{
                 return 0
             }
-            var lum = Int(rgb!.r) + Int(rgb!.g) + Int(rgb!.b)
-            avgLum += lum
-            diagonalA.append(lum)
+            avgLum += Int(lum!)
+            diagonalA.append(Int(lum!))
             pt = projectPoint(m:m , pt: (x:Double(5-i), y: Double(i)))
-            rgb = readRBGFromPixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
-            guard rgb != nil else{
+            lum = readLuminancePixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
+            guard lum != nil else{
                 return 0
             }
-            lum = Int(rgb!.r) + Int(rgb!.g) + Int(rgb!.b)
-            avgLum += lum
-            diagonalB.append(lum)
+            avgLum += Int(lum!)
+            diagonalB.append(Int(lum!))
         }
         avgLum = avgLum / 12
         var diagonalValue:Int = 0
@@ -189,12 +187,11 @@ struct ClinkCode{
                     continue
                 }
                 let pt = projectPoint(m:m , pt: (x:Double(x), y: Double(y)))
-                let rgb = readRBGFromPixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
-                guard rgb != nil else{
+                let lum = readLuminancePixelBuffer(baseAddress: pixelBufferBaseAddress, xy:pt)
+                guard lum != nil else{
                     return 0
                 }
-                let lum = Int(rgb!.r) + Int(rgb!.g) + Int(rgb!.b)
-                if(lum < avgLum){
+                if(lum! < avgLum){
                     codeValue = codeValue | (1 << bitIndex)
                 }
                 bitIndex = bitIndex + 1
@@ -227,17 +224,15 @@ func isClinkcodeType(type: Int) -> Bool {
     }
 }
 
-func readRBGFromPixelBuffer( baseAddress:UnsafeRawPointer, xy:(x:Double, y:Double) ) -> (r:UInt8, g:UInt8, b:UInt8)? {
+func readLuminancePixelBuffer( baseAddress:UnsafeRawPointer, xy:(x:Double, y:Double) ) -> UInt8? {
     let x = Int(round(xy.x))
     let y = Int(round(xy.y))
     guard x >= 0 && x < NUM_PIX_X && y >= 0 && y < NUM_PIX_Y else{
         return nil
     }
-    let offset:Int = y*BYTES_PER_ROW + x*4
-    let r:UInt8 = baseAddress.load(fromByteOffset: offset+0, as: UInt8.self)
-    let g:UInt8 = baseAddress.load(fromByteOffset: offset+1, as: UInt8.self)
-    let b:UInt8 = baseAddress.load(fromByteOffset: offset+2, as: UInt8.self)
-    return (r:r,g:g,b:b)
+    let offset:Int = (NUM_PIX_X-x)*NUM_PIX_Y + y //The buffer is flipped
+    let lum:UInt8 = baseAddress.load(fromByteOffset: offset, as: UInt8.self)
+    return lum
 }
 
 func simpleHash(_ s:String ) -> Int {
@@ -286,6 +281,8 @@ func simpleHash(_ s:String ) -> Int {
     var viewportSize: CGSize = CGSize()
     var viewportSizeDidChange: Bool = false
     
+    var capturedImagePixelBuffer:CVPixelBuffer!
+    
     struct SharedUniforms {
         var projectionMatrix: matrix_float4x4
         var viewMatrix: matrix_float4x4
@@ -325,6 +322,7 @@ func simpleHash(_ s:String ) -> Int {
         self.session = session
         self.device = device
         self.renderDestination = view
+        
         setupPipeline()
         setupAssets()
     }
@@ -490,6 +488,11 @@ func simpleHash(_ s:String ) -> Int {
                                             length: clinkDataSize * sizeInt32,
                                             options: .storageModeShared)
         
+        let pixBuff = capturedImagePixelBuffer
+        if(pixBuff != nil){
+            CVPixelBufferLockBaseAddress(pixBuff!,.readOnly)
+        }
+        
         guard let conversionRenderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: conversionPassDescriptor) else { return }
         convertTextureToRGB(renderEncoder: conversionRenderEncoder)
         conversionRenderEncoder.endEncoding()
@@ -505,7 +508,13 @@ func simpleHash(_ s:String ) -> Int {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         
-        processClinkData();
+        
+        if(pixBuff != nil){
+            let pixelBufferBaseAddress:UnsafeMutableRawPointer = CVPixelBufferGetBaseAddressOfPlane(pixBuff!,0)!
+            let bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixBuff!, 0)
+            processClinkData( pixelBufferBaseAddress )
+            CVPixelBufferUnlockBaseAddress(pixBuff!,.readOnly)
+        }
     }
     
     func updateBufferStates() {
@@ -591,10 +600,10 @@ func simpleHash(_ s:String ) -> Int {
     }
     
     func updateCapturedImageTextures(frame: ARFrame) {
-        let pixelBuffer = frame.capturedImage
-        if (CVPixelBufferGetPlaneCount(pixelBuffer) < 2) { return }
-        capturedImageTextureY = createTexture(fromPixelBuffer: pixelBuffer, pixelFormat:.r8Unorm, planeIndex:0)!
-        capturedImageTextureCbCr = createTexture(fromPixelBuffer: pixelBuffer, pixelFormat:.rg8Unorm, planeIndex:1)!
+        capturedImagePixelBuffer = frame.capturedImage
+        if (CVPixelBufferGetPlaneCount(capturedImagePixelBuffer) < 2) { return }
+        capturedImageTextureY = createTexture(fromPixelBuffer: capturedImagePixelBuffer, pixelFormat:.r8Unorm, planeIndex:0)!
+        capturedImageTextureCbCr = createTexture(fromPixelBuffer: capturedImagePixelBuffer, pixelFormat:.rg8Unorm, planeIndex:1)!
     }
     
     func createTexture(fromPixelBuffer pixelBuffer: CVPixelBuffer, pixelFormat: MTLPixelFormat, planeIndex: Int) -> MTLTexture? {
@@ -653,8 +662,8 @@ func simpleHash(_ s:String ) -> Int {
         
     }
     
-    func processClinkData(){
-        //let t0 = CFAbsoluteTimeGetCurrent()
+    func processClinkData(_ pixelBufferBaseAddress:UnsafeMutableRawPointer ){
+        let t0 = CFAbsoluteTimeGetCurrent()
         hLine = Int32(0)
         vLine = Int32(0)
         
@@ -664,17 +673,6 @@ func simpleHash(_ s:String ) -> Int {
         var clinkcodeDetected = (data[CODE_3Part_CW] > 1 && data[CODE_3Part_CCW] > 1)
         
         if(clinkboardDetected || clinkcodeDetected) {
-            
-            let bytesPerRow = 4*NUM_PIX_X
-            let length = NUM_PIX_Y*bytesPerRow
-            let rgbaBytes = [UInt8](repeating: 0, count: length)
-            let pixelBufferPointer = UnsafeMutableRawPointer(mutating: rgbaBytes)
-            let region = MTLRegionMake2D(0, 0, NUM_PIX_X, NUM_PIX_Y)
-            convertedImageTextureRGB.getBytes(pixelBufferPointer, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
-            
-//            let imageBuffer = CMSampleBufferGetImageBuffer(self.sampleBuffer!)
-//            CVPixelBufferLockBaseAddress(imageBuffer!,[])
-//            let baseAddress = CVPixelBufferGetBaseAddress(imageBuffer!)
             
             var tagsByType = extractTagsByType(data)
             clinkboardDetected = clinkboardDetected && tagsByType[BOARD_3Part_CW] != nil && tagsByType[BOARD_3Part_CCW] != nil && tagsByType[BOARD_4Part_BB] != nil && tagsByType[BOARD_4Part_RR] != nil
@@ -690,7 +688,7 @@ func simpleHash(_ s:String ) -> Int {
                     for p1 in cwPairs{
                         for p2 in ccwPairs{
                             if( p1.isCompatable(p2)){
-                                let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferPointer)
+                                let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferBaseAddress)
                                 if(clinkcode.isValid){
                                     print("Found clinkcode: \(clinkcode.code)")
                                     clinkcodeDetected = true;
@@ -707,12 +705,10 @@ func simpleHash(_ s:String ) -> Int {
                     }
                 }
             }
-            
-            //CVPixelBufferUnlockBaseAddress(imageBuffer!,[])
         }
         
         let t1 = CFAbsoluteTimeGetCurrent()
-        //print("\(t1-t0)secs\n")
+        print("\(round(1000*(t1-t0)))msecs\n")
     }
     
     func drawAnchorGeometry(renderEncoder: MTLRenderCommandEncoder) {
