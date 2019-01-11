@@ -661,9 +661,11 @@ struct ClinkCode{
                 bitIndex = bitIndex + 1
             }
         }
+        let diagonalIndex = VALID_CLINKCODE_DIAGONALS.index( of: diagonalValue )!
         let binString = String(codeValue, radix:2)
-        let hash = (simpleHash(binString) - 12) % 64
-        guard hash == diagonalValue else{
+        let hash = (simpleHash(binString) + 3) % 8
+        
+        guard hash == diagonalIndex else{
             return 0
         }
         return codeValue
