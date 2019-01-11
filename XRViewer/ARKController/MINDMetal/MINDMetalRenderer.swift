@@ -25,8 +25,8 @@ let X_ORIENTATION_AVERAGE = 5
 let Y_ORIENTATION_AVERAGE = 6
 let DOT_SIZE = 7
 
-let NUM_PIX_X = 1080 //1920
-let NUM_PIX_Y = 1920 //1080
+let NUM_PIX_X = 1920
+let NUM_PIX_Y = 1080
 let BYTES_PER_ROW = NUM_PIX_X * 4
 let GRID_RESOLUTION = 1
 var gridDivisionsX = 16*GRID_RESOLUTION
@@ -35,11 +35,12 @@ var clinkDataSize = valuesPerCell*gridDivisionsX*gridDivisionsY + numTagTypes
 var numGridCells = gridDivisionsX*gridDivisionsY
 
 //Debug lines. We can remove later:
-var hLine:Int32 = 1080/2 //1920/2
-var vLine:Int32 = 1920/2 //1080/2
+var hLine:Int32 = Int32(NUM_PIX_X/2)
+var vLine:Int32 = Int32(NUM_PIX_Y/2)
 
 //ClinkCorner Types
 let numTagTypes = 30
+////// TYPES  ///////
 let BOARD_3Part_CW = 0
 let CODE_3Part_CW = 1
 let BOARD_3Part_CCW = 2
@@ -150,7 +151,7 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
         
         let convertToRGBPipelineDescriptor = MTLRenderPipelineDescriptor()
         convertToRGBPipelineDescriptor.label = "ConvertToRGBPipeline"
-        convertToRGBPipelineDescriptor.vertexFunction = transformingVertexShader
+        convertToRGBPipelineDescriptor.vertexFunction = directVertexShader
         convertToRGBPipelineDescriptor.fragmentFunction = convertToRGBFragmentShader
         convertToRGBPipelineDescriptor.vertexDescriptor = imagePlaneVertexDescriptor
         convertToRGBPipelineDescriptor.sampleCount = 1
@@ -161,7 +162,7 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
         let clinkPipelineStateDescriptor = MTLRenderPipelineDescriptor()
         clinkPipelineStateDescriptor.label = "MyCapturedImagePipeline"
         clinkPipelineStateDescriptor.sampleCount = renderDestination.sampleCount
-        clinkPipelineStateDescriptor.vertexFunction = directVertexShader
+        clinkPipelineStateDescriptor.vertexFunction = transformingVertexShader
         clinkPipelineStateDescriptor.fragmentFunction = capturedImageFragmentShader
         clinkPipelineStateDescriptor.vertexDescriptor = imagePlaneVertexDescriptor
         clinkPipelineStateDescriptor.colorAttachments[0].pixelFormat = renderDestination.colorPixelFormat
@@ -693,7 +694,8 @@ func readLuminancePixelBuffer( baseAddress:UnsafeRawPointer, xy:(x:Double, y:Dou
     guard x >= 0 && x < NUM_PIX_X && y >= 0 && y < NUM_PIX_Y else{
         return nil
     }
-    let offset:Int = (NUM_PIX_X-x)*NUM_PIX_Y + y //The buffer is flipped
+    //let offset:Int = (NUM_PIX_X-x)*NUM_PIX_Y + y //Used when buffer is XY flipped
+    let offset:Int = y*NUM_PIX_X + x
     let lum:UInt8 = baseAddress.load(fromByteOffset: offset, as: UInt8.self)
     return lum
 }

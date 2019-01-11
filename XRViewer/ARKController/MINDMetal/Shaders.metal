@@ -39,11 +39,11 @@ constant half SAMPLE_HALF_ANGLE = M_PI_H/NSAMPLES;
 constant half SAMPLE_ANGLE = 2*SAMPLE_HALF_ANGLE;
 constant int N_CHANNEL_THRESHOLD = NSAMPLES/5;
 constant int HALF_N_CHANNEL_THRESHOLD = NSAMPLES/10;
-constant uint WIDTH_PIXELS = 1080;//1920;
-constant uint HEIGHT_PIXELS = 1920;//1080;
+constant uint WIDTH_PIXELS = 1920;
+constant uint HEIGHT_PIXELS = 1080;
 constant half ASPECT_RATIO = half(WIDTH_PIXELS)/half(HEIGHT_PIXELS);
 constant half LUM_DIFF_THRESHOLD = 0.05;
-constant half RADIUS_X = 0.016;
+constant half RADIUS_X = 0.009;
 constant half RADIUS_Y = RADIUS_X*ASPECT_RATIO;
 constant half ORIENTATION_RESOLUTION = 10;
 constant half ORIENTATION_XY_SCALE = ORIENTATION_RESOLUTION/2/RADIUS_X;
@@ -164,24 +164,23 @@ float4 measureDotXYSizeBalance(texture2d<float, access::sample> texture, float2 
 /* ************************** */
 
 vertex TextureMappingInOut transformingVertexShader(ImageVertex in [[stage_in]]) {
-    TextureMappingInOut out;
-    out.position = float4(in.position, 0.0, 1.0);
-    out.texCoord = in.texCoord;
-    return out;
+    TextureMappingInOut outVertex;
+    outVertex.position = float4(in.position, 0.0, 1.0);
+    outVertex.texCoord = in.texCoord;
+    return outVertex;
 }
 
 vertex TextureMappingInOut directVertexShader(unsigned int vertex_id [[ vertex_id ]]) {
     TextureMappingInOut outVertex;
     outVertex.position = directRenderedCoordinates[vertex_id];
     outVertex.texCoord = directTextureCoordinates[vertex_id];
-    
     return outVertex;
 }
 
-fragment float4 ycbcrToRGBFragmentShader(TextureMappingInOut in [[stage_in]],
+fragment float4 ycbcrToRGBFragmentShader(TextureMappingInOut mappingVertex [[stage_in]],
                                          texture2d<float, access::sample> textureY [[ texture(1) ]],
                                          texture2d<float, access::sample> textureCbCr [[ texture(2) ]]) {
-    float4 ycbcr = float4(textureY.sample(colorSampler, in.texCoord).r, textureCbCr.sample(colorSampler, in.texCoord).rg, 1.0);
+    float4 ycbcr = float4(textureY.sample(colorSampler, mappingVertex.texCoord).r, textureCbCr.sample(colorSampler, mappingVertex.texCoord).rg, 1.0);
     return ycbcrToRGBTransform * ycbcr;
 }
 
