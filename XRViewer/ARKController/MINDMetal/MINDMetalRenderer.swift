@@ -1,5 +1,6 @@
 import MetalKit
 import ARKit
+import JavaScriptCore
 
 let sizeInt32 = MemoryLayout<Int32>.stride
 
@@ -52,16 +53,19 @@ let BOARD_4Part_BB = 6
 let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
 
 
+//JAVASCRIPT RESOURCES
+let javascriptResourcesToLoad = ["MINDXR"]
+
 /* ************************** */
 /*      MINDMetalRenderer     */
 /* ************************** */
 
 @objc class MINDMetalRenderer:NSObject {
     
+    //Rendering Stuff
     var viewportSize: CGSize = CGSize()
     var viewportSizeDidChange: Bool = false
     var viewportOrientation:UIInterfaceOrientation = .portrait
-    
     var session: ARSession!
     var device: MTLDevice!
     var commandQueue: MTLCommandQueue!
@@ -80,6 +84,16 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
     var sharedUniformBufferOffset: Int = 0
     var sharedUniformBufferAddress: UnsafeMutableRawPointer!
     var capturedImagePixelBuffer:CVPixelBuffer!
+    
+    //Camera Stuff
+    var backCamera:AVCaptureDevice!
+    var focalLength:Double = 1572 //we should update from the ARCamera.intrinsics
+    var fieldOfViewVDeg:Double = 37.9150085 //Vertical FieldOfView in degrees
+    var fieldOfViewHDeg:Double = 67.4044647 //Horizontal FieldOfView in degrees
+    
+    //Javascript Stuff
+    var context:JSContext!
+    var poseFunction:JSValue!
     
     struct SharedUniforms {
         var projectionMatrix: matrix_float4x4
@@ -103,7 +117,72 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
         self.session = session
         self.device = device
         self.renderDestination = view
+        backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: AVMediaType.video, position: .back)
+        setupJavascript()
         setupPipeline()
+    }
+    
+    func setupJavascript(){
+        let contextName = "MINDXR_JSContext"
+        context = JSContext()
+        context.name = contextName
+        context.exceptionHandler = { context, value in
+            print("JSContext( \(contextName) Error: \(value!)")
+        }
+        //Load Javscript Resources:
+        for jsResourceName in javascriptResourcesToLoad {
+            if let path = Bundle.main.path(forResource: jsResourceName, ofType: "js"),
+                let jsSource = try? String(contentsOfFile: path) {
+                let result = context.evaluateScript(jsSource)!
+                print("Loaded \(jsResourceName) with result: \(result)")
+            }
+        }
+        
+        //TODO: If the focalLength changes, we'll want to rebuild the posit
+        context.evaluateScript("posit = new POS.Posit(1, \(focalLength));")
+        poseFunction = context.objectForKeyedSubscript("getPositPose")
+    }
+    
+    func getClinkPose(_ clinkcode:ClinkCode ) -> Dictionary<String, [Double]>{
+        let halfWidth:Double = Double(NUM_PIX_X) / 2.0
+        let halfHeight:Double = Double(NUM_PIX_Y) / 2.0
+        
+        let result = poseFunction.call(withArguments: [clinkcode.topLeft.x - halfWidth, clinkcode.topLeft.y - halfHeight,
+                                                       clinkcode.topRight.x - halfWidth, clinkcode.topRight.y - halfHeight,
+                                                       clinkcode.bottomRight.x - halfWidth, clinkcode.bottomRight.y - halfHeight,
+                                                       clinkcode.bottomLeft.x - halfWidth, clinkcode.bottomLeft.y - halfHeight])
+        guard
+            let pose = result?.toDictionary() as? Dictionary<String, [Double]>
+            //let bestTranslation = pose["bestTranslation"],
+            //let bestRotation = pose["bestRotation"]
+        else{
+            return [:]
+        }
+        return pose
+    }
+    
+    //testing the flashlight. Will be turning this into a very brief pulse to detect when using the AR_Mirror
+    func pulseFlash(_ on: Bool) {
+        if backCamera.hasTorch && backCamera.isTorchAvailable {
+            do {
+                try backCamera.lockForConfiguration()
+                if on == true {
+                    backCamera.torchMode = .on // set on
+                } else {
+                    backCamera.torchMode = .off // set off
+                }
+                backCamera.unlockForConfiguration()
+            } catch {
+                print("Flash could not be used")
+            }
+        } else {
+            print("Flash is not available")
+        }
+    }
+    
+    //NOTE: Can we use this to see if we are focusing on something near or far?
+    func getLenseInfo() -> (position:Float, aperture:Float ) {
+        return (position:backCamera.lensPosition, aperture:backCamera.lensAperture)
     }
     
     func setupPipeline() {
@@ -226,6 +305,24 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
     
     func updateWorldState() {
         guard let currentFrame = session.currentFrame else { return }
+        
+        //TODO: We'll want to pass the projectionMatrix and FieldOfView info on to javascript so ThreeJS can match camera
+        let projectionMatrix = currentFrame.camera.projectionMatrix
+        
+        //Calculate the FieldOfView FOV for vertical and horizontal
+        let imageResolution = currentFrame.camera.imageResolution
+        let intrinsics = currentFrame.camera.intrinsics
+        let newFocalLength:Double = round(Double(intrinsics[0,0]))
+        if(self.focalLength != newFocalLength){
+            //TODO: We'll want to update the posit and other things that use this value
+            let newHFieldOfView = 2 * atan(Float(imageResolution.width)/(2 * intrinsics[0,0])) * 180/Float.pi
+            let newVFieldOfView = 2 * atan(Float(imageResolution.height)/(2 * intrinsics[1,1])) * 180/Float.pi
+            
+            //A different way of calculating the above values. They should be the same!
+            let yFovDeg = 2 * atan(1/projectionMatrix[1,1]) * 180/Float.pi
+            let xFovDeg = yFovDeg * Float(imageResolution.width / imageResolution.height)
+        }
+        
         updateSharedUniforms(frame: currentFrame)
         updateCapturedImageTextures(frame: currentFrame)
         if viewportSizeDidChange {
@@ -330,10 +427,12 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
                                     clinkcodeDetected = true;
                                     hLine = Int32(clinkcode.centerXY.x)
                                     vLine = Int32(clinkcode.centerXY.y)
+                                    let poseData = self.getClinkPose(clinkcode)
                                     self.clinkCode = [
                                         "code": clinkcode.code,
                                         "hLine": hLine,
-                                        "vLine": vLine
+                                        "vLine": vLine,
+                                        "poseData": poseData
                                     ]
                                 }
                             }
@@ -662,8 +761,8 @@ struct ClinkCode{
             }
         }
         let diagonalIndex = VALID_CLINKCODE_DIAGONALS.index( of: diagonalValue )!
-        let binString = String(codeValue, radix:2)
-        let hash = (simpleHash(binString) + 3) % 8
+        let hexString = String(codeValue, radix:16)
+        let hash = (simpleHash(hexString)+5) % 8
         
         guard hash == diagonalIndex else{
             return 0

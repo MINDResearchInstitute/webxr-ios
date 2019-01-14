@@ -61,6 +61,8 @@
 		8E5089D8211B6DA90059015B /* webxr.js in Resources */ = {isa = PBXBuildFile; fileRef = 8E5089D7211B6DA90059015B /* webxr.js */; };
 		8ED9EBB3211C6FB000DA58F1 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8ED9EBB2211C6FB000DA58F1 /* Web */; };
 		A6160A0B1F651B4D009F4402 /* Reachability.m in Sources */ = {isa = PBXBuildFile; fileRef = A6160A091F651B14009F4402 /* Reachability.m */; };
+		CC15C37021E951D00027C06F /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC15C36F21E951CF0027C06F /* JavaScriptCore.framework */; };
+		CC15C37221E959300027C06F /* MINDXR.js in Resources */ = {isa = PBXBuildFile; fileRef = CC15C37121E959300027C06F /* MINDXR.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -157,6 +159,8 @@
 		A6160A091F651B14009F4402 /* Reachability.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Reachability.m; sourceTree = "<group>"; };
 		A6160A0A1F651B14009F4402 /* Reachability.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Reachability.h; sourceTree = "<group>"; };
 		C99925CDAC21EAF144F18C57 /* Pods-XRViewer.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-XRViewer.debug.xcconfig"; path = "Pods/Target Support Files/Pods-XRViewer/Pods-XRViewer.debug.xcconfig"; sourceTree = "<group>"; };
+		CC15C36F21E951CF0027C06F /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		CC15C37121E959300027C06F /* MINDXR.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = MINDXR.js; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +168,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC15C37021E951D00027C06F /* JavaScriptCore.framework in Frameworks */,
 				591A8C502FA83D70E8F5B5B4 /* Pods_XRViewer.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -320,6 +325,7 @@
 		04A983761F32279900120CF8 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				CC15C37121E959300027C06F /* MINDXR.js */,
 				6241012B1FEABABF006FDBE3 /* XRViewer-Bridging-Header.h */,
 				041503D81F28944F00887400 /* Info.plist */,
 				625051081FCDBDBE00EEAC0A /* GoogleService-Info.plist */,
@@ -456,6 +462,7 @@
 		8C9E99F056CB67F28E2A9647 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				CC15C36F21E951CF0027C06F /* JavaScriptCore.framework */,
 				62CB6E6E1AD338266A9AB3DC /* Pods_XRViewer.framework */,
 			);
 			name = Frameworks;
@@ -534,6 +541,7 @@
 				6207254F206A90BF00887B1F /* RequestPermissionsViewController.xib in Resources */,
 				8E5089D8211B6DA90059015B /* webxr.js in Resources */,
 				0401E04B1F612C240075D823 /* BarView.xib in Resources */,
+				CC15C37221E959300027C06F /* MINDXR.js in Resources */,
 				041503D21F28944F00887400 /* Main.storyboard in Resources */,
 				625FA2E7202046BF00F62698 /* TermsAndConditionsTableViewCell.xib in Resources */,
 				62242AC4201F2A0700506412 /* TextInputTableViewCell.xib in Resources */,
