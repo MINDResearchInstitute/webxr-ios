@@ -93,7 +93,7 @@ let javascriptResourcesToLoad = ["MINDXR"]
     
     //Javascript Stuff
     var context:JSContext!
-    var poseFunction:JSValue!
+    var clinkcodePoseFunction:JSValue!
     
     struct SharedUniforms {
         var projectionMatrix: matrix_float4x4
@@ -139,18 +139,21 @@ let javascriptResourcesToLoad = ["MINDXR"]
         }
         
         //TODO: If the focalLength changes, we'll want to rebuild the posit
-        context.evaluateScript("posit = new POS.Posit(1, \(focalLength));")
-        poseFunction = context.objectForKeyedSubscript("getPositPose")
+        //context.evaluateScript("clinkcodePosit = new POS.Posit(1, \(focalLength));")
+        clinkcodePoseFunction = context.objectForKeyedSubscript("getClinkcodeTransform")
     }
     
-    func getClinkPose(_ clinkcode:ClinkCode ) -> Dictionary<String, [Double]>{
+    func getClinkcodeCoordinateTransform(_ clinkcode:ClinkCode, cameraMatrix:[Double] ) -> Dictionary<String, [Double]>{
         let halfWidth:Double = Double(NUM_PIX_X) / 2.0
         let halfHeight:Double = Double(NUM_PIX_Y) / 2.0
         
-        let result = poseFunction.call(withArguments: [clinkcode.topLeft.x - halfWidth, clinkcode.topLeft.y - halfHeight,
-                                                       clinkcode.topRight.x - halfWidth, clinkcode.topRight.y - halfHeight,
-                                                       clinkcode.bottomRight.x - halfWidth, clinkcode.bottomRight.y - halfHeight,
-                                                       clinkcode.bottomLeft.x - halfWidth, clinkcode.bottomLeft.y - halfHeight])
+        let corners:[Double] = [clinkcode.topLeft.x - halfWidth, clinkcode.topLeft.y - halfHeight,
+                                clinkcode.topRight.x - halfWidth, clinkcode.topRight.y - halfHeight,
+                                clinkcode.bottomRight.x - halfWidth, clinkcode.bottomRight.y - halfHeight,
+                                clinkcode.bottomLeft.x - halfWidth, clinkcode.bottomLeft.y - halfHeight]
+        
+        //Arguments: clinkTagSize, focalLength, corners, cameraMatrix
+        let result = clinkcodePoseFunction.call(withArguments: [0.04, focalLength, corners, cameraMatrix] )
         guard
             let pose = result?.toDictionary() as? Dictionary<String, [Double]>
             //let bestTranslation = pose["bestTranslation"],
@@ -406,6 +409,14 @@ let javascriptResourcesToLoad = ["MINDXR"]
         var clinkcodeDetected = (data[CODE_3Part_CW] > 1 && data[CODE_3Part_CCW] > 1)
         
         if(clinkboardDetected || clinkcodeDetected) {
+            guard let currentFrame = session.currentFrame else { return }
+            let cameraPose = currentFrame.camera.transform
+            var cameraMatrix:[Double] = []
+            for column in [cameraPose.columns.0, cameraPose.columns.1, cameraPose.columns.2, cameraPose.columns.3]{
+                for item in column{
+                    cameraMatrix.append(Double(item))
+                }
+            }
             
             var tagsByType = extractTagsByType(data)
             clinkboardDetected = clinkboardDetected && tagsByType[BOARD_3Part_CW] != nil && tagsByType[BOARD_3Part_CCW] != nil && tagsByType[BOARD_4Part_BB] != nil && tagsByType[BOARD_4Part_RR] != nil
@@ -424,15 +435,17 @@ let javascriptResourcesToLoad = ["MINDXR"]
                                 let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferBaseAddress)
                                 if(clinkcode.isValid){
                                     print("Found clinkcode: \(clinkcode.code)")
+                                    //we expect code 10894314
                                     clinkcodeDetected = true;
                                     hLine = Int32(clinkcode.centerXY.x)
                                     vLine = Int32(clinkcode.centerXY.y)
-                                    let poseData = self.getClinkPose(clinkcode)
+                                    let transformData = self.getClinkcodeCoordinateTransform(clinkcode, cameraMatrix:cameraMatrix)
+                                    
                                     self.clinkCode = [
                                         "code": clinkcode.code,
-                                        "hLine": hLine,
-                                        "vLine": vLine,
-                                        "poseData": poseData
+                                        "codeScreenX": hLine,
+                                        "codeScreenY": vLine,
+                                        "coordinateTransform": transformData["coordinateTransform"] ?? []
                                     ]
                                 }
                             }

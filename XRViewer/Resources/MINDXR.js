@@ -1,3 +1,396 @@
+function applyQuatToVect( q, vect ){
+    var x = vect[0];
+    var y = vect[1];
+    var z = vect[2];
+    
+    var qx = q[0];
+    var qy = q[1];
+    var qz = q[2];
+    var qw = q[3];
+    
+    var ix =  qw * x + qy * z - qz * y;
+    var iy =  qw * y + qz * x - qx * z;
+    var iz =  qw * z + qx * y - qy * x;
+    var iw = - qx * x - qy * y - qz * z;
+    
+    return [ ix * qw + iw * - qx + iy * - qz - iz * - qy,
+            iy * qw + iw * - qy + iz * - qx - ix * - qz,
+            iz * qw + iw * - qz + ix * - qy - iy * - qx];
+}
+
+
+function quatFromEuler( euler ){
+    return quatFromRotations(euler[0],euler[1],euler[2]);
+}
+
+function quatFromRotations( x, y, z ){
+    var c1 = Math.cos( x * 0.5 );
+    var c2 = Math.cos( y * 0.5 );
+    var c3 = Math.cos( z * 0.5 );
+    var s1 = Math.sin( x * 0.5 );
+    var s2 = Math.sin( y * 0.5 );
+    var s3 = Math.sin( z * 0.5 );
+    
+    return [s1 * c2 * c3 + c1 * s2 * s3,
+            c1 * s2 * c3 - s1 * c2 * s3,
+            c1 * c2 * s3 + s1 * s2 * c3,
+            c1 * c2 * c3 - s1 * s2 * s3];
+}
+
+function quatFromUnitVectors( v1, v2 ) {
+    var r = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] + 1;
+    if( r < 0.000001){
+        r = 0;
+        if ( Math.abs( v1[0] ) > Math.abs( v1[2] ) ){
+            return makeNormalizedQuat( -v1[1], v1[0], 0, 1 );
+        }
+        else{
+            return makeNormalizedQuat(0, - v1[2], v1[1], 1);
+        }
+    }
+    else{
+        return makeNormalizedQuat(v1[1] * v2[2] - v1[2] * v2[1],
+                                  v1[2] * v2[0] - v1[0] * v2[2],
+                                  v1[0] * v2[1] - v1[1] * v2[0],
+                                  r);
+    }
+}
+
+function makeNormalizedQuat(x,y,z,w){
+    var l = Math.hypot(x,y,z,w);
+    if( l === 0 ){
+        return [0, 0, 0, 1];
+    }
+    else{
+        l = 1 / l;
+        return [x*l,y*l,z*l,w*l];
+    }
+}
+
+function normalizeVector(v){
+    var l = Math.hypot(v[0],v[1],v[2]);
+    if(l == 0){
+        return [0,0,0];
+    }
+    else{
+        l = 1/l;
+        return [v[0]*l, v[1]*l, v[2]*l];
+    }
+}
+
+function matrixToEuler( m ){
+    var m11 = m[ 0 ], m12 = m[ 4 ], m13 = m[ 8 ];
+    var m21 = m[ 1 ], m22 = m[ 5 ], m23 = m[ 9 ];
+    var m31 = m[ 2 ], m32 = m[ 6 ], m33 = m[ 10 ];
+    var y = Math.max(-1,Math.min(1,Math.asin(m13)));
+    var x,z;
+    if( Math.abs( m13 ) < 0.99999 ){
+        x = Math.atan2( - m23, m33 );
+        z = Math.atan2( - m12, m11 );
+    }
+    else{
+        
+        x = Math.atan2( m32, m22 );
+        z = 0;
+    }
+    return [x,y,z];
+}
+
+function quatToEuler( quat ){
+    var mat = buildTransform([0,0,0], quat);
+    return matrixToEuler(mat);
+}
+
+
+function buildTransform( pos, quat ) {
+    var x = quat[0], y = quat[1], z = quat[2], w = quat[3];
+    var x2 = x + x,    y2 = y + y, z2 = z + z;
+    var xx = x * x2, xy = x * y2, xz = x * z2;
+    var yy = y * y2, yz = y * z2, zz = z * z2;
+    var wx = w * x2, wy = w * y2, wz = w * z2;
+    
+    return [1 - ( yy + zz ),
+            xy + wz,
+            xz - wy,
+            0,
+            xy - wz,
+            1 - ( xx + zz ),
+            yz + wx,
+            0,
+            xz + wy,
+            yz - wx,
+            1 - ( xx + yy ),
+            0,
+            pos[0],
+            pos[1],
+            pos[2],
+            1];
+}
+
+function inverseQuat(quat){
+    var x = -quat[0];
+    var y = -quat[1];
+    var z = -quat[2];
+    var w = quat[3];
+    return makeNormalizedQuat(x,y,z,w);
+}
+
+function reverseQuatRotations(quat){
+    return multiplyQuatRotations(quat,[-1,-1,-1]);
+}
+
+function multiplyQuatRotations(quat, mult){
+    var mat = buildTransform([0,0,0], quat);
+    var euler = matrixToEuler(mat);
+    euler[0]*=mult[0];
+    euler[1]*=mult[1];
+    euler[2]*=mult[2];
+    return quatFromEuler(euler);
+}
+
+function multiplyQuaternions( a, b ) {
+    var qax = a[0], qay = a[1], qaz = a[2], qaw = a[3];
+    var qbx = b[0], qby = b[1], qbz = b[2], qbw = b[3];
+    
+    return [qax * qbw + qaw * qbx + qay * qbz - qaz * qby,
+            qay * qbw + qaw * qby + qaz * qbx - qax * qbz,
+            qaz * qbw + qaw * qbz + qax * qby - qay * qbx,
+            qaw * qbw - qax * qbx - qay * qby - qaz * qbz];
+}
+
+function multiplyMatrices4( a, b ) {
+    return[
+           a[0] * b[0] + a[4] * b[1] + a[8] * b[2] + a[12] * b[3],
+           a[1] * b[0] + a[5] * b[1] + a[9] * b[2] + a[13] * b[3],
+           a[2] * b[0] + a[6] * b[1] + a[10] * b[2] + a[14] * b[3],
+           a[3] * b[0] + a[7] * b[1] + a[11] * b[2] + a[15] * b[3],
+           a[0] * b[4] + a[4] * b[5] + a[8] * b[6] + a[12] * b[7],
+           a[1] * b[4] + a[5] * b[5] + a[9] * b[6] + a[13] * b[7],
+           a[2] * b[4] + a[6] * b[5] + a[10] * b[6] + a[14] * b[7],
+           a[3] * b[4] + a[7] * b[5] + a[11] * b[6] + a[15] * b[7],
+           a[0] * b[8] + a[4] * b[9] + a[8] * b[10] + a[12] * b[11],
+           a[1] * b[8] + a[5] * b[9] + a[9] * b[10] + a[13] * b[11],
+           a[2] * b[8] + a[6] * b[9] + a[10] * b[10] + a[14] * b[11],
+           a[3] * b[8] + a[7] * b[9] + a[11] * b[10] + a[15] * b[11],
+           a[0] * b[12] + a[4] * b[13] + a[8] * b[14] + a[12] * b[15],
+           a[1] * b[12] + a[5] * b[13] + a[9] * b[14] + a[13] * b[15],
+           a[2] * b[12] + a[6] * b[13] + a[10] * b[14] + a[14] * b[15],
+           a[3] * b[12] + a[7] * b[13] + a[11] * b[14] + a[15] * b[15]];
+}
+
+
+function buildCoordinateSpaceTransform(newOrigin, newXAxis, newYAxis, newZAxis) {
+    var tf = [     newXAxis[0], newYAxis[0], newZAxis[0], 0,
+              newXAxis[1], newYAxis[1], newZAxis[1], 0,
+              newXAxis[2], newYAxis[2], newZAxis[2], 0,
+              0, 0, 0, 1 ];
+    var t0 = transformPoint3D(tf,newOrigin);
+    tf[12] = -t0[0];
+    tf[13] = -t0[1];
+    tf[14] = -t0[2];
+    return tf;
+}
+
+function getLookAtMatrix( point, up ) {
+    var dx = point[0];
+    var dy = point[1];
+    var dz = point[2];
+    var length = Math.hypot(dx,dy,dz);
+    if(length == 0){
+        return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+    }
+    else{
+        dx/=length;
+        dy/=length;
+        dz/=length;
+    }
+    //Up is assumed to be unit vector?
+    var upx=up[0];
+    var upy=up[1];
+    var upz=up[2];
+    var ax = upy * dz - upz * dy;
+    var ay = upz * dx - upx * dz;
+    var az = upx * dy - upy * dx;
+    var alen = Math.hypot(ax,ay,az);
+    
+    if(alen == 0){
+        dz += 0.0001;
+        ax = upy * dz - upz * dy;
+        ay = upz * dx - upx * dz;
+        az = upx * dy - upy * dx;
+        alen = Math.hypot(ax,ay,az);
+    }
+    ax/=alen;
+    ay/=alen;
+    az/=alen;
+    
+    var bx = dy * az - dz * ay;
+    var by = dz * ax - dx * az;
+    var bz = dx * ay - dy * ax;
+    var blen = Math.hypot(bx,by,bz);
+    bx/=blen;
+    by/=blen;
+    bz/=blen;
+    
+    return [ax,ay,az,0,  bx,by,bz,0,  dx,dy,dz,0, 0,0,0,1];
+}
+
+function getQuatFromRotationMatrix( mat ){
+    let quat = [0,0,0,1];
+    let trace = mat[0] + mat[5] + mat[10];
+    let S = 0;
+    if (trace > 0) {
+        S = Math.sqrt(trace + 1.0) * 2;
+        quat[3] = 0.25 * S;
+        quat[0] = (mat[6] - mat[9]) / S;
+        quat[1] = (mat[8] - mat[2]) / S;
+        quat[2] = (mat[1] - mat[4]) / S;
+    } else if ((mat[0] > mat[5]) && (mat[0] > mat[10])) {
+        S = Math.sqrt(1.0 + mat[0] - mat[5] - mat[10]) * 2;
+        quat[3] = (mat[6] - mat[9]) / S;
+        quat[0] = 0.25 * S;
+        quat[1] = (mat[1] + mat[4]) / S;
+        quat[2] = (mat[8] + mat[2]) / S;
+    } else if (mat[5] > mat[10]) {
+        S = Math.sqrt(1.0 + mat[5] - mat[0] - mat[10]) * 2;
+        quat[3] = (mat[8] - mat[2]) / S;
+        quat[0] = (mat[1] + mat[4]) / S;
+        quat[1] = 0.25 * S;
+        quat[2] = (mat[6] + mat[9]) / S;
+    } else {
+        S = Math.sqrt(1.0 + mat[10] - mat[0] - mat[5]) * 2;
+        quat[3] = (mat[1] - mat[4]) / S;
+        quat[0] = (mat[8] + mat[2]) / S;
+        quat[1] = (mat[6] + mat[9]) / S;
+        quat[2] = 0.25 * S;
+    }
+    return quat;
+}
+
+function transformPoint3D( matrix4, pt3d, outputPoint, defaultZValue ){
+    defaultZValue = defaultZValue||0;
+    var x = pt3d[0]||0, y = pt3d[1]||0;
+    var z = pt3d[2];
+    if(z == null){
+        z = defaultZValue;
+    }
+    
+    outputPoint = outputPoint || [];
+    var m = matrix4;
+    var s = 1/(m[ 3 ] * x + m[ 7 ] * y + m[ 11 ] * z + m[ 15 ]);
+    outputPoint[0] = s*(m[ 0 ] * x + m[ 4 ] * y + m[ 8 ]  * z + m[ 12 ]);
+    outputPoint[1] = s*(m[ 1 ] * x + m[ 5 ] * y + m[ 9 ]  * z + m[ 13 ]);
+    outputPoint[2] = s*(m[ 2 ] * x + m[ 6 ] * y + m[ 10 ] * z + m[ 14 ]);
+    return outputPoint;
+}
+
+function addVectors( a, b ){
+    return [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+}
+
+function subtractVectors( a, b ){
+    return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+}
+
+function dotMultVectors( a, b ){
+    return [a[0]*b[0],a[1]*b[1],a[2]*b[2]];
+}
+
+
+
+function getQuaternionFromPositRotation(bestRotation){
+    var euler = [-Math.asin(-bestRotation[1][2]),
+                 -Math.atan2(bestRotation[0][2], bestRotation[2][2]),
+                 Math.atan2(bestRotation[1][0], bestRotation[1][1])];
+    return quatFromEuler(euler);
+}
+
+
+function transformDeviceQuaternion_orig( tf, deviceQuaternion, deviceLocation ){
+    var deviceMat = buildTransform( deviceLocation, deviceQuaternion );
+    var newMat = multiplyMatrices4(tf,deviceMat);
+    return getQuatFromRotationMatrix(newMat);
+}
+
+
+function transformDeviceQuaternion( tf, deviceQuaternion, deviceLocation ){
+    var deviceMat = buildTransform( deviceLocation, deviceQuaternion );
+    var origin = transformPoint3D(tf,deviceLocation);
+    var up = transformPoint3D(tf,transformPoint3D(deviceMat,[0,1,0]));
+    var inFront = transformPoint3D(tf,transformPoint3D(deviceMat,[0,0,1]));
+    up = subtractVectors(up,origin);
+    inFront = subtractVectors(inFront,origin);
+    
+    var mat = getLookAtMatrix( inFront, up );
+    return getQuatFromRotationMatrix( mat );
+}
+
+
+function makeClinkCoordinateTransform( deviceQuaternion, deviceLocation, screenPosData, clinkTagSize  ){
+    var screenQuat = getQuaternionFromPositRotation(screenPosData.bestRotation);
+    var screenTrans = dotMultVectors(screenPosData.bestTranslation, [clinkTagSize, -clinkTagSize, -clinkTagSize]);
+    
+    var deltaScreenLoc = applyQuatToVect( deviceQuaternion , screenTrans );
+    var absoluteScreenLoc = addVectors(deviceLocation,deltaScreenLoc);
+    
+    screenQuat = multiplyQuatRotations(screenQuat, [1,1,-1]);
+    
+    var xPoint = addVectors(deviceLocation,
+                            applyQuatToVect( deviceQuaternion ,
+                                            addVectors(screenTrans,
+                                                       applyQuatToVect( screenQuat ,[1,0,0]))));
+    var yPoint = addVectors(deviceLocation,
+                            applyQuatToVect( deviceQuaternion ,
+                                            addVectors(screenTrans,
+                                                       applyQuatToVect( screenQuat ,[0,-1,0]))));
+    var zPoint = addVectors(deviceLocation,
+                            applyQuatToVect( deviceQuaternion ,
+                                            addVectors(screenTrans,
+                                                       applyQuatToVect( screenQuat ,[0,0,-1]))));
+    
+    var xAxis = normalizeVector(subtractVectors(xPoint,absoluteScreenLoc));
+    var yAxis = normalizeVector(subtractVectors(yPoint,absoluteScreenLoc));
+    var zAxis = normalizeVector(subtractVectors(zPoint,absoluteScreenLoc));
+    
+    var rightsizeQuat = quatFromUnitVectors( yAxis, [0,1,0] );
+    xAxis = applyQuatToVect(rightsizeQuat, xAxis);
+    yAxis = applyQuatToVect(rightsizeQuat, yAxis);
+    zAxis = applyQuatToVect(rightsizeQuat, zAxis);
+    
+    
+    var coordinateTransform = buildCoordinateSpaceTransform(absoluteScreenLoc, xAxis, yAxis, zAxis);
+    return {
+        coordinateTransform: coordinateTransform,
+        tagLocation:absoluteScreenLoc,
+        tagQuaternion:screenQuat
+    }
+}
+
+function getClinkBoardPose( roomTransform, deviceQuaternion, deviceLocation, boardPosData  ){
+    //TODO: The transformed orientation is not correct yet.
+    //      Probably shouldn't be using the transformDeviceQuaternion call and instead
+    //      make a better routine for this case.
+    
+    var trans = boardPosData.bestTranslation;
+    trans = [trans[0],-trans[1],-trans[2]];
+    trans = applyQuatToVect( deviceQuaternion, trans );
+    trans = addVectors(trans,deviceLocation);
+    var orientation = getQuaternionFromPositRotation(boardPosData.bestRotation);
+    orientation = multiplyQuaternions(deviceQuaternion,orientation);
+    orientation = transformDeviceQuaternion(roomTransform, orientation, trans );
+    trans = transformPoint3D( roomTransform, trans);
+    
+    //var mat = buildTransform(trans, orientation);
+    return {
+    position:trans,
+    orientation:orientation
+    }
+}
+
+
+
+
+
 /*
 Posit1 and SVD
 Copyright (c) 2012 Juan Mellado
@@ -294,6 +687,7 @@ References:
 var POS = POS || {};
 
 POS.Posit = function(modelSize, focalLength){
+  this.modelSize = modelSize;
   this.objectPoints = this.buildModel(modelSize);
   this.focalLength = focalLength;
 
@@ -769,21 +1163,51 @@ POS.flattenArray = function( array ){
 }
 
 POS.Pose = function(error1, rotation1, translation1, error2, rotation2, translation2){
+    /*return {
+        bestError: [error1],
+        bestRotation: POS.flattenArray(rotation1),
+        bestTranslation:translation1,
+        alternativeError:[error2],
+        alternativeRotation: POS.flattenArray(rotation2),
+        alternativeTranslation:translation2
+    }*/
     return {
-    bestError: [error1],
-    bestRotation: POS.flattenArray(rotation1),
-    bestTranslation:translation1,
-    alternativeError:[error2],
-    alternativeRotation: POS.flattenArray(rotation2),
-    alternativeTranslation:translation2
-    }
+        bestError: error1,
+        bestRotation: rotation1,
+        bestTranslation:translation1,
+        alternativeError:error2,
+        alternativeRotation: rotation2,
+        alternativeTranslation:translation2
+    };
 };
 
-var posit; //will get filled in
+var clinkcodePosit; //will get filled in
 
-var getPositPose = function( x0, y0, x1, y1, x2, y2, x3, y3 ){
-    var pose = posit.pose([{x:x0, y:y0},{x:x1, y:y1},{x:x2, y:y2},{x:x3, y:y3}]);
-    return pose;
+var getClinkcodeTransform = function( clinkTagSize, focalLength, corners, cameraMatrix ){
+    var modelSize = 1;
+    if(!clinkcodePosit || clinkcodePosit.focalLength != focalLength || clinkcodePosit.modelSize != modelSize){
+        clinkcodePosit = new POS.Posit(modelSize, focalLength);
+    }
+    var pose = clinkcodePosit.pose([{x:corners[0], y:corners[1]},{x:corners[2], y:corners[3]},{x:corners[4], y:corners[5]},{x:corners[6], y:corners[7]}]);
+    
+    var cameraQuaternion = getQuatFromRotationMatrix(cameraMatrix);
+    var cameraLocation = [cameraMatrix[12],cameraMatrix[13],cameraMatrix[14]];
+    var transformInfo = makeClinkCoordinateTransform( cameraQuaternion, cameraLocation, pose, clinkTagSize  );
+    var coordinateTransform = transformInfo.coordinateTransform;
+    var tagLocation = transformInfo.tagLocation;
+    var tagQuaternion = transformInfo.tagQuaternion;
+    
+    var roomPosition = transformPoint3D(coordinateTransform, cameraLocation);
+    //var roomQuat = transformDeviceQuaternion(coordinateTransform, cameraQuaternion, cameraLocation);
+    //var roomEuler = quatToEuler(roomQuat);
+    
+    return {
+        transformedCameraPosition:roomPosition,
+        tagLocation:tagLocation,
+        tagQuaternion:tagQuaternion,
+        tagOrientation:quatToEuler(tagQuaternion),
+        coordinateTransform:coordinateTransform
+    };
 }
 
 "LOADED MINDXR.js"
