@@ -56,6 +56,8 @@ let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
 //JAVASCRIPT RESOURCES
 let javascriptResourcesToLoad = ["MINDXR"]
 
+var lastFrameTime:CFAbsoluteTime = 0
+
 /* ************************** */
 /*      MINDMetalRenderer     */
 /* ************************** */
@@ -111,6 +113,7 @@ let javascriptResourcesToLoad = ["MINDXR"]
     internal var clinkData = [Int32](repeating:0, count: clinkDataSize)
     internal var clinkDataBuffer: MTLBuffer?
     
+    @objc var clinkFrame:Dictionary<String, Any> = [:];
     @objc var clinkCode:Dictionary<String, Any> = [:];
     
     @objc func setup(session: ARSession, device: MTLDevice, view: MTKView) {
@@ -257,6 +260,16 @@ let javascriptResourcesToLoad = ["MINDXR"]
     }
     
     @objc func update() {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let diff = (t0 - lastFrameTime)
+        
+//        if (diff < 1) {
+//            return
+//        }
+        
+        print("\(1/diff)fps\n")
+        lastFrameTime = t0
+        
         let pixBuff = capturedImagePixelBuffer
         
         let _ = inFlightSemaphore.wait(timeout: DispatchTime.distantFuture)
@@ -428,6 +441,23 @@ let javascriptResourcesToLoad = ["MINDXR"]
                                     hLine = Int32(clinkcode.centerXY.x)
                                     vLine = Int32(clinkcode.centerXY.y)
                                     let poseData = self.getClinkPose(clinkcode)
+                                    
+                                    //self.cameraFrame
+                                    // matrix
+                                    // pose
+                                    // clink id
+                                    // anchor ids
+                                    
+                                    self.clinkFrame = [
+                                        "clinkId": "1234",
+                                        "transformMatrix": [1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0],
+                                        "pose": poseData,
+                                        "anchorIds": ["111","222"]
+                                    ]
+                                    
+                                    // request data with id, timeout
+                                    //self.clinkData
+                                    
                                     self.clinkCode = [
                                         "code": clinkcode.code,
                                         "hLine": hLine,
@@ -443,7 +473,7 @@ let javascriptResourcesToLoad = ["MINDXR"]
         }
         
         let t1 = CFAbsoluteTimeGetCurrent()
-        print("\(round(1000*(t1-t0)))msecs\n")
+//        print("\(round(1000*(t1-t0)))msecs\n")
     }
     
 }

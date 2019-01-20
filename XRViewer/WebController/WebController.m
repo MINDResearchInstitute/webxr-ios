@@ -476,10 +476,13 @@ inline static WebCompletion debugCompletion(NSString *name)
         }
     } else if ([[message name] isEqualToString:WEB_AR_PLAY_VIBRATE]) {
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
+    } else if ([[message name] isEqualToString:WEB_AR_START_READ_CLINK_TAG]) {
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
+    } else if ([[message name] isEqualToString:WEB_AR_STOP_READ_CLINK_TAG]) {
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
     } else {
         DDLogError(@"Unknown message: %@ ,for name: %@", [message body], [message name]);
     }
-    
 }
 
 - (void)callWebMethod:(NSString *)name param:(NSString *)param webCompletion:(WebCompletion)completion
@@ -730,6 +733,8 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_GET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_SET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_PLAY_VIBRATE];
+    [[self contentController] addScriptMessageHandler:self name:WEB_AR_START_READ_CLINK_TAG];
+    [[self contentController] addScriptMessageHandler:self name:WEB_AR_STOP_READ_CLINK_TAG];
 }
 
 - (void)cleanWebContent
@@ -752,6 +757,8 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DEACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_PLAY_VIBRATE];
+    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_START_READ_CLINK_TAG];
+    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_STOP_READ_CLINK_TAG];
 }
 
 - (void)setupWebViewWithRootView:(__autoreleasing UIView*)rootView
@@ -806,7 +813,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     
     [wv setNavigationDelegate:self];
     [wv setUIDelegate:self];
-    [wv setHidden:YES];
+    [wv setHidden:NO];
     [self setWebView:wv];
 }
 

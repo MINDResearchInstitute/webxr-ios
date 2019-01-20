@@ -35,6 +35,10 @@
 
 @implementation ARKSceneKitController
 
+- (NSDictionary*) clinkFrame {
+    return [[self metalRenderer] clinkFrame];
+}
+
 - (NSDictionary*) clinkCode {
     return [[self metalRenderer] clinkCode];
 }
@@ -268,43 +272,43 @@
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer updateAtTime:(NSTimeInterval)time
 {
-    dispatch_async(dispatch_get_main_queue(), ^
-                   {
-                       CGFloat lightEstimate = [[[[self session] currentFrame] lightEstimate] ambientIntensity];
-                       
-                       [[[[self renderView] scene] lightingEnvironment] setIntensity:(lightEstimate / 40)];
-                       
-                       [self hitTest];
-                       
-                       [self updateCameraFocus];
-                       [self updatePlanes];
-                       [self updateAnchors];
-                   });
+//    dispatch_async(dispatch_get_main_queue(), ^
+//                   {
+//                       CGFloat lightEstimate = [[[[self session] currentFrame] lightEstimate] ambientIntensity];
+//
+//                       [[[[self renderView] scene] lightingEnvironment] setIntensity:(lightEstimate / 40)];
+//
+//                       [self hitTest];
+//
+//                       [self updateCameraFocus];
+//                       [self updatePlanes];
+//                       [self updateAnchors];
+//                   });
 }
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer didAddNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor
 {
-    dispatch_async(dispatch_get_main_queue(), ^
-                   {
-                       if ([anchor isKindOfClass:[ARPlaneAnchor class]] )
-                       {
-                           PlaneNode *plane = [[PlaneNode alloc] initWithAnchor:(ARPlaneAnchor *)anchor];
-                           [[self planes] setObject:plane forKey:[anchor identifier]];
-                           [node addChildNode:plane];
-                       }
-                       else
-                       {
-                           AnchorNode *anchorNode = [[AnchorNode alloc] initWithAnchor:anchor];
-                           [node addChildNode:anchorNode];
-                           [[self anchorsNodes] addObject:anchorNode];
-                           
-                           // move anchor to be over the plane
-                           SCNMatrix4 transform = [node worldTransform];
-                           transform = SCNMatrix4Translate(transform, 0, ([anchorNode size]) / 2, 0);
-                           [node setTransform:transform];
-                           
-                       }
-                   });
+//    dispatch_async(dispatch_get_main_queue(), ^
+//                   {
+//                       if ([anchor isKindOfClass:[ARPlaneAnchor class]] )
+//                       {
+//                           PlaneNode *plane = [[PlaneNode alloc] initWithAnchor:(ARPlaneAnchor *)anchor];
+//                           [[self planes] setObject:plane forKey:[anchor identifier]];
+//                           [node addChildNode:plane];
+//                       }
+//                       else
+//                       {
+//                           AnchorNode *anchorNode = [[AnchorNode alloc] initWithAnchor:anchor];
+//                           [node addChildNode:anchorNode];
+//                           [[self anchorsNodes] addObject:anchorNode];
+//
+//                           // move anchor to be over the plane
+//                           SCNMatrix4 transform = [node worldTransform];
+//                           transform = SCNMatrix4Translate(transform, 0, ([anchorNode size]) / 2, 0);
+//                           [node setTransform:transform];
+//
+//                       }
+//                   });
 }
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer willUpdateNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor
@@ -313,29 +317,29 @@
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer didUpdateNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor
 {
-    dispatch_async(dispatch_get_main_queue(), ^
-                   {
-                       if ([anchor isKindOfClass:[ARPlaneAnchor class]])
-                       {
-                           PlaneNode *plane = [[self planes] objectForKey:[anchor identifier]];
-                           [plane update:(ARPlaneAnchor *)anchor];
-                       }
-                   });
+//    dispatch_async(dispatch_get_main_queue(), ^
+//                   {
+//                       if ([anchor isKindOfClass:[ARPlaneAnchor class]])
+//                       {
+//                           PlaneNode *plane = [[self planes] objectForKey:[anchor identifier]];
+//                           [plane update:(ARPlaneAnchor *)anchor];
+//                       }
+//                   });
 }
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer didRemoveNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor
 {
-    dispatch_async(dispatch_get_main_queue(), ^
-                   {
-                       if ([node isKindOfClass:[AnchorNode class]])
-                       {
-                           [[self anchorsNodes] removeObject:node];
-                       }
-                       else
-                       {
-                           [[self planes] removeObjectForKey:[anchor identifier]];
-                       }
-                   });
+//    dispatch_async(dispatch_get_main_queue(), ^
+//                   {
+//                       if ([node isKindOfClass:[AnchorNode class]])
+//                       {
+//                           [[self anchorsNodes] removeObject:node];
+//                       }
+//                       else
+//                       {
+//                           [[self planes] removeObjectForKey:[anchor identifier]];
+//                       }
+//                   });
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {

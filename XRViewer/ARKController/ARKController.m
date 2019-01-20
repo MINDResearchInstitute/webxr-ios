@@ -1331,8 +1331,6 @@ double lastConvertTime = 0;
                 
                 cvInformation[@"frame"] = frameInformation;
                 cvInformation[@"camera"] = cameraInformation;
-                cvInformation[@"clinkCode"] = [[self controller] clinkCode];
-                NSLog(@"%@",[[self controller] clinkCode]);
                 
 //                os_unfair_lock_lock(&(lock));
 //                computerVisionData = [cvInformation copy];
@@ -1342,6 +1340,9 @@ double lastConvertTime = 0;
 
             newData[WEB_AR_3D_GEOALIGNED_OPTION] = @([[self configuration] worldAlignment] == ARWorldAlignmentGravityAndHeading ? YES : NO);
             newData[WEB_AR_3D_VIDEO_ACCESS_OPTION] = @([self computerVisionDataEnabled] ? YES : NO);
+            
+            newData[@"clinkFrame"] = [[self controller] clinkFrame];
+            newData[@"clinkCode"] = [[self controller] clinkCode];
             
 //            os_unfair_lock_lock(&(lock));
 //            arkData = [newData copy];

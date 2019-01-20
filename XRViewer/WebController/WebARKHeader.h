@@ -39,6 +39,8 @@
 #define WEB_AR_SET_WORLD_MAP_MESSAGE   @"setWorldMap"
 
 #define WEB_AR_PLAY_VIBRATE @"playVibrate"
+#define WEB_AR_START_READ_CLINK_TAG @"startReadClinkTag"
+#define WEB_AR_STOP_READ_CLINK_TAG @"stopReadClinkTag"
 
 #define WEB_AR_ON_JS_UPDATE_MESSAGE    @"onUpdate" // reques from JS
 
