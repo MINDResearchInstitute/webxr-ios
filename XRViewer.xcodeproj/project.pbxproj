@@ -63,6 +63,8 @@
 		A6160A0B1F651B4D009F4402 /* Reachability.m in Sources */ = {isa = PBXBuildFile; fileRef = A6160A091F651B14009F4402 /* Reachability.m */; };
 		CC15C37021E951D00027C06F /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC15C36F21E951CF0027C06F /* JavaScriptCore.framework */; };
 		CC15C37221E959300027C06F /* MINDXR.js in Resources */ = {isa = PBXBuildFile; fileRef = CC15C37121E959300027C06F /* MINDXR.js */; };
+		CC15C37521F144850027C06F /* MINDPositSVD.js in Resources */ = {isa = PBXBuildFile; fileRef = CC15C37321F144840027C06F /* MINDPositSVD.js */; };
+		CC15C37621F144850027C06F /* MINDMath.js in Resources */ = {isa = PBXBuildFile; fileRef = CC15C37421F144840027C06F /* MINDMath.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -161,6 +163,8 @@
 		C99925CDAC21EAF144F18C57 /* Pods-XRViewer.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-XRViewer.debug.xcconfig"; path = "Pods/Target Support Files/Pods-XRViewer/Pods-XRViewer.debug.xcconfig"; sourceTree = "<group>"; };
 		CC15C36F21E951CF0027C06F /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		CC15C37121E959300027C06F /* MINDXR.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = MINDXR.js; sourceTree = "<group>"; };
+		CC15C37321F144840027C06F /* MINDPositSVD.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = MINDPositSVD.js; sourceTree = "<group>"; };
+		CC15C37421F144840027C06F /* MINDMath.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = MINDMath.js; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -329,6 +333,8 @@
 				6241012B1FEABABF006FDBE3 /* XRViewer-Bridging-Header.h */,
 				041503D81F28944F00887400 /* Info.plist */,
 				625051081FCDBDBE00EEAC0A /* GoogleService-Info.plist */,
+				CC15C37421F144840027C06F /* MINDMath.js */,
+				CC15C37321F144840027C06F /* MINDPositSVD.js */,
 				041503D91F28944F00887400 /* main.m */,
 				041503D31F28944F00887400 /* Assets.xcassets */,
 				041503D01F28944F00887400 /* Main.storyboard */,
@@ -541,6 +547,7 @@
 				6207254F206A90BF00887B1F /* RequestPermissionsViewController.xib in Resources */,
 				8E5089D8211B6DA90059015B /* webxr.js in Resources */,
 				0401E04B1F612C240075D823 /* BarView.xib in Resources */,
+				CC15C37621F144850027C06F /* MINDMath.js in Resources */,
 				CC15C37221E959300027C06F /* MINDXR.js in Resources */,
 				041503D21F28944F00887400 /* Main.storyboard in Resources */,
 				625FA2E7202046BF00F62698 /* TermsAndConditionsTableViewCell.xib in Resources */,
@@ -551,6 +558,7 @@
 				04A815681F419EB60082D31D /* Models.scnassets in Resources */,
 				625051091FCDBDBE00EEAC0A /* GoogleService-Info.plist in Resources */,
 				62242AC8201F2AE100506412 /* SwitchInputTableViewCell.xib in Resources */,
+				CC15C37521F144850027C06F /* MINDPositSVD.js in Resources */,
 				8ED9EBB3211C6FB000DA58F1 /* Web in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

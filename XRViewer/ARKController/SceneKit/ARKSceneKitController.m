@@ -40,7 +40,7 @@
 }
 
 - (NSDictionary*) clinkCode {
-    return [[self metalRenderer] clinkCode];
+    return [[self metalRenderer] clinkInfo];
 }
 
 - (void)dealloc
