@@ -68,6 +68,7 @@ let LOW_ERROR_POSE_THRESHOLD:Double = 12.0
 let CENTER_DIST_THRESHOLD:Double = Double(NUM_PIX_Y) * 0.4
 let MIN_DEVICE_MOTION_FOR_TRIANGULATION:Double = 0.1
 let TRIANGULATION_ERROR_THRESHOLD:Double = 10
+let MIN_TRIANGULATION_SAMPLES:Int = 1
 
 
 //JAVASCRIPT RESOURCES
@@ -139,6 +140,19 @@ var clinkcodeTestFunction:JSValue?
     
     @objc var clinkFrame:Dictionary<String, Any> = [:];
     @objc var clinkInfo:Dictionary<String, Any> = [:];
+    
+    @objc func getClinkInfo() -> Dictionary<String, Any>{
+        let info = clinkInfo
+        clinkInfo = [:]
+        return info
+    }
+    
+    @objc func updateRoomInfo( roomInfo:Dictionary<String, Any> ){
+        print("Got new roomInfo from JSApp: \(roomInfo)")
+        
+        //Need to pull out the roomInfo stuff as in the flow
+        //
+    }
     
     @objc func setup(session: ARSession, device: MTLDevice, view: MTKView) {
         self.session = session
@@ -522,6 +536,69 @@ var clinkcodeTestFunction:JSValue?
         newClinkcodeInstances!.append(getClinkcodeInstanceJSON(instance))
         clinkInfo["newClinkcodeInstances"] = newClinkcodeInstances!
     }
+    /*
+        JSApp <--> Native Communication Flow
+     
+        * Flow When TagSize is known by the server
+            1) Native encounters a new Clinkcode
+                --Gets the Code, gps, tilt, and sends to JSApp
+            2) JSApp queries server with code, gps and tilt and sees if there is a match
+                --Match means,
+                    * exact same code number
+                    * gps differe distance < 100m
+                    * tilt difference. Tilt is [up/down pitch degrees, compass direction degreees from N (pos towards E), z roll rotation in deg]
+                        --> Cisco screen will be [0,compass,0]
+                --There can be multiple matches (like for Cisco dual screen)
+            3) JSApp sends the server info for the Clinkcode to the Native side
+                --Sends array of ClinkCodeInfo with  TagSizes, TagModels, instanceIDs, roomIDs
+                --Also sends ClinkRoom datascructure... (See below)
+            4) Native Side updates the ClinkDatabase and uses TagSize and TagModel to get sessionLocation of the ClinkRoom
+            5) Native sends JSApp the sessionLocation of the ClinkRoom
+            6) JSApp can now make a ThreeJS Group for the ClinkRoom with Tilt and sessionLocation info
+     
+        * Flow When TagSize is NOT known by the server
+            1) Native encounters a new Clinkcode
+            2) JSApp queries server
+            3) No match on server
+            4) Native triangulates the TagSize and the TagModel and sends to JSApp
+            5) JSApp can update the server with TagSize and TagModel measurements
+     
+        * Flow to test
+            1) encounter
+            2) --no query yet
+            3) triangulate
+            4) Send triangulation to JSAPP
+            5) JSApp makes a new room on the fly and sends room info back to native
+            6) Native can keep updating JSApp of device changes and room location/tilt changes...
+            7) JSApp renders room as ThreeJS Group with some test objects in the room.
+                roomInfo:
+                    * clinkroomID:String = "TestID"
+                    * globalPosition:[Double] =  pass back as is.
+                    * tilt:[Double] --tilt of the room. [0, compassAngle of tag as is, 0]
+                    * roomType:Int = 1 is classroom
+                    * roomDescription:String = "Demo Room"
+                    * elevation:Double = 0 meters of room off of the street ground (could be zero for now)
+                    * floorOffset:Double = 1 meter offset of origin of room from the room's floor
+                        --anchors:[ClinkRoomAnchor] = [] -- don't need now
+                        --anchorGroups:[ClinkRoomAnchorGroup] = -- don't need now
+                    * clinkCodeInstances  [ Array of Clink Instances in the room ]
+                            --> Most will have just 1
+                            --> Cisco dual display will have 2
+                        --Includes the code number, tilt, localCoordinates (location in room coordinates), tagSize, tagModel
+                        --For now, localCoordinates can just be [0,0,0]
+     
+     * Another Flow to Test:
+        1) JSApp first sends the room info before an encounter
+            --Has the clink code, tagSize, tagModel, room info, etc...
+        2) Native can use the tagSize right away and not have to triangulate.
+        3) Native can send full encounter info back to JSApp
+     
+     * Another Flow to Test:
+     1) Native encounters clinkcode, sends encounter to JSApp
+     2) JSApp sends the room info before an encounter
+        --Has the clink code, tagSize, tagModel, room info, etc...
+     
+     */
     
     func newClinkcodeTriangulation(_ instance:ClinkcodeInstanceData ){
         var newTriangulations = clinkInfo["newClinkcodeTriangulations"] as? [Dictionary<String, Any>]
@@ -660,7 +737,7 @@ class ClinkRoom{
     let elevation:Double = 0 //elevation of the room off of the outside ground. Could be high for skyscrapers
     let floorOffset:Double = 0 //offset of the floor from the rooms origin at the origin. Could have different offsets other places
     let anchors:[ClinkRoomAnchor] = [] //list of anchors with anchor info
-    let anchorGrups:[ClinkRoomAnchorGroup] = []
+    let anchorGroups:[ClinkRoomAnchorGroup] = []
     let clinkCodeInstances:[ClinkcodeInstanceData] = [] //clinkcode instances found in the room
 }
 
@@ -737,7 +814,7 @@ class ClinkcodeInstanceData{
                         else {return .None}
                     referenceEncounter = nil
                     triangulationSamples.append(triangulationData)
-                    if(triangulationSamples.count > 2){
+                    if(triangulationSamples.count >= MIN_TRIANGULATION_SAMPLES){
                         var avgTagSize:Double = 0
                         for tsamp in triangulationSamples{
                             avgTagSize += tsamp.tagSize
