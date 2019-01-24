@@ -5,8 +5,8 @@ import CoreLocation
 
 /*
  TODO: A lot of the code here should probably be moved out:
-    controller stuff into a controller class
-    helper functions and stuff into a helper library
+ controller stuff into a controller class
+ helper functions and stuff into a helper library
  */
 
 let sizeInt32 = MemoryLayout<Int32>.stride
@@ -78,8 +78,6 @@ var clinkcodePoseFunction:JSValue?
 var triangulatePointsFunction:JSValue?
 var clinkcodeTestFunction:JSValue?
 
-var lastFrameTime:CFAbsoluteTime = 0
-
 /* ************************** */
 /*      MINDMetalRenderer     */
 /* ************************** */
@@ -139,12 +137,8 @@ var lastFrameTime:CFAbsoluteTime = 0
     internal var clinkData = [Int32](repeating:0, count: clinkDataSize)
     internal var clinkDataBuffer: MTLBuffer?
     
-<<<<<<< Updated upstream
     @objc var clinkFrame:Dictionary<String, Any> = [:];
-    @objc var clinkCode:Dictionary<String, Any> = [:];
-=======
     @objc var clinkInfo:Dictionary<String, Any> = [:];
->>>>>>> Stashed changes
     
     @objc func setup(session: ARSession, device: MTLDevice, view: MTKView) {
         self.session = session
@@ -289,16 +283,6 @@ var lastFrameTime:CFAbsoluteTime = 0
     }
     
     @objc func update() {
-        let t0 = CFAbsoluteTimeGetCurrent()
-        let diff = (t0 - lastFrameTime)
-        
-//        if (diff < 1) {
-//            return
-//        }
-        
-        print("\(1/diff)fps\n")
-        lastFrameTime = t0
-        
         let pixBuff = capturedImagePixelBuffer
         
         let _ = inFlightSemaphore.wait(timeout: DispatchTime.distantFuture)
@@ -315,7 +299,7 @@ var lastFrameTime:CFAbsoluteTime = 0
         updateBufferStates()
         updateWorldState()
         
-       //Clear the clinkDataBuffer
+        //Clear the clinkDataBuffer
         guard let clinkDataBuffer = clinkDataBuffer else { return }
         let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
         blitEncoder.fill(buffer: clinkDataBuffer, range:0..<clinkDataBuffer.length, value:0)
@@ -454,10 +438,10 @@ var lastFrameTime:CFAbsoluteTime = 0
         if(clinkboardDetected || clinkcodeDetected) {
             guard let currentFrame = session.currentFrame else { return }
             if(lastFrame == currentFrame){
-               return
+                return
             }
             lastFrame = currentFrame
- 
+            
             let lightEst = Double((currentFrame.lightEstimate?.ambientIntensity)!)
             let timestamp = Date().timeIntervalSince1970 as Double
             
@@ -489,59 +473,15 @@ var lastFrameTime:CFAbsoluteTime = 0
                 if(cwPairs.count > 0 && ccwPairs.count > 0){
                     for p1 in cwPairs{
                         for p2 in ccwPairs{
-<<<<<<< Updated upstream
-                            if( p1.isCompatable(p2)){
-                                let clinkcode = ClinkCode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferBaseAddress)
-                                if(clinkcode.isValid){
-                                    print("Found clinkcode: \(clinkcode.code)")
-                                    //we expect code 10894314
-                                    clinkcodeDetected = true;
-                                    hLine = Int32(clinkcode.centerXY.x)
-                                    vLine = Int32(clinkcode.centerXY.y)
-                                    
-                                    let poseData = self.getClinkPose(clinkcode)
-                                    
-                                    //self.cameraFrame
-                                    // matrix
-                                    // pose
-                                    // clink id
-                                    // anchor ids
-                                    // request data with id, timeout
-                                    
-                                    self.clinkFrame = [
-                                        "clinkId": "1234",
-                                        "transformMatrix": [1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0],
-                                        "pose": poseData,
-                                        "anchorIds": ["111","222"]
-                                    ]
-                                    
-                                    let transformData = self.getClinkcodeCoordinateTransform(clinkcode, cameraMatrix:cameraMatrix)
-                                    
-                                    self.clinkCode = [
-                                        "code": clinkcode.code,
-                                        "codeScreenX": hLine,
-                                        "codeScreenY": vLine,
-                                        "coordinateTransform": transformData["coordinateTransform"] ?? []
-                                    ]
-                                }
-                            }
-=======
                             guard p1.isCompatable(p2) else {continue}
                             let clinkcode = Clinkcode(cwPair: p1, ccwPair: p2, pixelBufferBaseAddress:pixelBufferBaseAddress, dataFrame:clinkDataFrame)
                             guard clinkcode.isValid else {continue}
                             clinkcodeFound(clinkcode)
->>>>>>> Stashed changes
                         }
                     }
                 }
             }
         }
-<<<<<<< Updated upstream
-        
-        let t1 = CFAbsoluteTimeGetCurrent()
-//        print("\(round(1000*(t1-t0)))msecs\n")
-=======
->>>>>>> Stashed changes
     }
     
     func clinkcodeFound(_ clinkcode:Clinkcode){
@@ -794,7 +734,7 @@ class ClinkcodeInstanceData{
                 if(deviceMotion > MIN_DEVICE_MOTION_FOR_TRIANGULATION && encounter.isNearCenter()){
                     guard let triangulationData = triangulateTagSize(referenceEncounter!, encounter),
                         triangulationData.error < TRIANGULATION_ERROR_THRESHOLD
-                    else {return .None}
+                        else {return .None}
                     referenceEncounter = nil
                     triangulationSamples.append(triangulationData)
                     if(triangulationSamples.count > 2){
@@ -869,10 +809,10 @@ class ClinkcodeDataSet{
             if(instance.isPossibleMatch(encounter)){
                 isNewInstance = false
                 switch instance.newEncounter(encounter){
-                    case .TagSizeTriangulated :
-                        print("TagSize Triangulated: \(instance.tagSize)")
-                        newTriangulations.append(instance)
-                    default : break
+                case .TagSizeTriangulated :
+                    print("TagSize Triangulated: \(instance.tagSize)")
+                    newTriangulations.append(instance)
+                default : break
                 }
             }
         }
@@ -1018,10 +958,10 @@ class Clinkcode{
     
     func getCorner(_ index:Int ) -> ExtractedTag {
         switch index{
-            case 0: return topLeft
-            case 1: return topRight
-            case 2: return bottomRight
-            default: return bottomLeft
+        case 0: return topLeft
+        case 1: return topRight
+        case 2: return bottomRight
+        default: return bottomLeft
         }
     }
     
@@ -1366,11 +1306,11 @@ func triangulateTagSize(_ clinkcodeA:Clinkcode,_ clinkcodeB:Clinkcode) -> Triang
     //Arguments: triangulatePointsFrom2CameraViews( pixW, pixH, cameraMatrixA, cameraProjectionA, screenPointsA, cameraMatrixB, cameraProjectionB, screenPointsB ){
     let result = triangulateFunction.call(withArguments: [NUM_PIX_X, NUM_PIX_Y, cameraMatrixA, cameraProjectionA, screenPointsA, cameraMatrixB, cameraProjectionB, screenPointsB ] )
     guard let triangulationData = result?.toDictionary() as? Dictionary<String, [Double]>,
-          let distances = triangulationData["distances"],
-          let aPoints = triangulationData["aPoints"],
-          let bPoints = triangulationData["bPoints"],
-          let translationA = clinkcodeA.getUnitTranslation(),
-          let translationB = clinkcodeB.getUnitTranslation()
+        let distances = triangulationData["distances"],
+        let aPoints = triangulationData["aPoints"],
+        let bPoints = triangulationData["bPoints"],
+        let translationA = clinkcodeA.getUnitTranslation(),
+        let translationB = clinkcodeB.getUnitTranslation()
         else {return nil}
     guard distances[0] > 0 && distances[1] > 0 && distances[2] < 0.01 else
     {
@@ -1451,7 +1391,7 @@ func quaternionToEulerDeg(_ quat:[Double]) -> [Double]{
     let y = quat[1]
     let z = quat[2]
     let w = quat[3]
-        
+    
     let Rx = atan2(2.0 * (w * x + y * z), 1.0 - (2.0 * (x * x + y * y)))
     let Ry = asin(2.0 * (w * y - z * x))
     let Rz = atan2(2.0 * (w * z + x * y), 1.0 - (2.0  * (y * y + z * z)))
