@@ -474,7 +474,9 @@ var clinkcodeTestFunction:JSValue?
             
             var tagsByType = extractTagsByType(data)
             
-            let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, lenseInfo:lenseInfo, tagsInFrame:tagsByType, lightingEstimate:lightEst)
+            let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, lenseInfo:lenseInfo, tagsInFrame:tagsByType, ambientLightLevel:lightEst)
+            
+            updateClinkFrame(clinkDataFrame)
             
             clinkboardDetected = clinkboardDetected && tagsByType[BOARD_3Part_CW] != nil && tagsByType[BOARD_3Part_CCW] != nil && tagsByType[BOARD_4Part_BB] != nil && tagsByType[BOARD_4Part_RR] != nil
             
@@ -496,6 +498,17 @@ var clinkcodeTestFunction:JSValue?
                 }
             }
         }
+    }
+    
+    func updateClinkFrame(_ clinkDataFrame:ClinkDataFrame){
+        clinkFrame = [
+            "frameID" : clinkDataFrame.frameID,
+            "timestamp" : clinkDataFrame.timestamp,
+            "location" : clinkDataFrame.location,
+            "cameraPose" : clinkDataFrame.cameraPose,
+            "cameraProjection" : clinkDataFrame.cameraProjection,
+            "ambientLightLevel" : clinkDataFrame.ambientLightLevel
+        ];
     }
     
     func clinkcodeFound(_ clinkcode:Clinkcode){
@@ -698,7 +711,7 @@ struct ClinkDataFrame{
     let cameraProjection:[Double]
     let lenseInfo:(position:Float, aperture:Float )
     let tagsInFrame:[Int:[ExtractedTag]] //can be used to distinguish multiple instances of same clinkdata
-    let lightingEstimate:Double
+    let ambientLightLevel:Double
     
     func getCameraLoc() -> [Double]{
         return [cameraPose[12],cameraPose[13],cameraPose[14]]
