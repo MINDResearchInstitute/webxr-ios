@@ -35,12 +35,16 @@
 
 @implementation ARKSceneKitController
 
-- (NSDictionary*) clinkFrame {
+- (NSDictionary*) getClinkFrame {
     return [[self metalRenderer] clinkFrame];
 }
 
-- (NSDictionary*) clinkCode {
+- (NSDictionary*) getClinkInfo {
     return [[self metalRenderer] getClinkInfo];
+}
+
+- (void) updateRoomInfo:(NSDictionary*)info {
+    [[self metalRenderer] updateRoomInfoWithRoomInfo:info];
 }
 
 - (void)dealloc

@@ -26,8 +26,9 @@
 
 - (matrix_float4x4)cameraProjectionTransform;
 
-- (NSDictionary*) clinkFrame;
-- (NSDictionary*) clinkCode;
+- (NSDictionary*) getClinkFrame;
+- (NSDictionary*) getClinkInfo;
+- (void) updateRoomInfo:(NSDictionary*)info;
 
 @end
 

@@ -567,6 +567,10 @@ double lastConvertTime = 0;
     }
 }
 
+- (void)updateRoomInfo:(NSDictionary *)info completion:(SetWorldMapCompletionBlock)completion {
+    [[self controller] updateRoomInfo:info];
+}
+
 - (void)_setWorldMap:(ARWorldMap *)map  {
     SetWorldMapCompletionBlock completion = self.setWorldMapPromise;
     self.setWorldMapPromise = nil;
@@ -1341,8 +1345,8 @@ double lastConvertTime = 0;
             newData[WEB_AR_3D_GEOALIGNED_OPTION] = @([[self configuration] worldAlignment] == ARWorldAlignmentGravityAndHeading ? YES : NO);
             newData[WEB_AR_3D_VIDEO_ACCESS_OPTION] = @([self computerVisionDataEnabled] ? YES : NO);
             
-            newData[@"clinkFrame"] = [[self controller] clinkFrame];
-            newData[@"clinkCode"] = [[self controller] clinkCode];
+            newData[@"clinkFrame"] = [[self controller] getClinkFrame];
+            newData[@"clinkInfo"] = [[self controller] getClinkInfo];
             
 //            os_unfair_lock_lock(&(lock));
 //            arkData = [newData copy];

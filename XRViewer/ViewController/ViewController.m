@@ -876,6 +876,10 @@ typedef void (^UICompletion)(void);
     [[self webController] setOnSwitchCameraButtonTapped:^{
         [[blockSelf arkController] switchCameraButtonTapped];
     }];
+    
+    [[self webController] setOnUpdateRoomInfo:^(NSDictionary *dictionary, SetWorldMapCompletionBlock completion) {
+        [[blockSelf arkController] updateRoomInfo:dictionary completion:completion];
+    }];
 
     if ([[self stateController] wasMemoryWarning])
     {

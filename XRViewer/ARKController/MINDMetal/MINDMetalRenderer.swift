@@ -141,8 +141,8 @@ var clinkcodeTestFunction:JSValue?
     @objc var clinkFrame:Dictionary<String, Any> = [:];
     @objc var clinkInfo:Dictionary<String, Any> = [:];
     
-    @objc func getClinkInfo() -> Dictionary<String, Any>{
-        let info = clinkInfo
+    @objc func getClinkInfo() -> NSDictionary {
+        let info = NSDictionary(dictionary: clinkInfo)
         clinkInfo = [:]
         return info
     }

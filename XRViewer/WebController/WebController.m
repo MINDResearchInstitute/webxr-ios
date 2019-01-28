@@ -476,10 +476,19 @@ inline static WebCompletion debugCompletion(NSString *name)
         }
     } else if ([[message name] isEqualToString:WEB_AR_PLAY_VIBRATE]) {
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
-    } else if ([[message name] isEqualToString:WEB_AR_START_READ_CLINK_TAG]) {
-        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
-    } else if ([[message name] isEqualToString:WEB_AR_STOP_READ_CLINK_TAG]) {
-        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
+    } else if ([[message name] isEqualToString:WEB_AR_UPDATE_ROOM_INFO]) {
+        NSDictionary *roomInfoDictionary = [message body];
+//        NSString *setWorldMapCallback = [[message body] objectForKey:WEB_AR_CALLBACK_OPTION];
+        if ([self onUpdateRoomInfo]) {
+            [self onUpdateRoomInfo](roomInfoDictionary, ^(BOOL success, NSString* errorString) {
+                NSMutableDictionary* responseDictionary = [NSMutableDictionary new];
+                responseDictionary[@"loaded"] = @(success);
+                if (errorString) {
+                    responseDictionary[@"error"] = errorString;
+                }
+//                [blockSelf callWebMethod:setWorldMapCallback paramJSON:responseDictionary webCompletion:NULL];
+            });
+        }
     } else {
         DDLogError(@"Unknown message: %@ ,for name: %@", [message body], [message name]);
     }
@@ -733,8 +742,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_GET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_SET_WORLD_MAP_MESSAGE];
     [[self contentController] addScriptMessageHandler:self name:WEB_AR_PLAY_VIBRATE];
-    [[self contentController] addScriptMessageHandler:self name:WEB_AR_START_READ_CLINK_TAG];
-    [[self contentController] addScriptMessageHandler:self name:WEB_AR_STOP_READ_CLINK_TAG];
+    [[self contentController] addScriptMessageHandler:self name:WEB_AR_UPDATE_ROOM_INFO];
 }
 
 - (void)cleanWebContent
@@ -757,8 +765,7 @@ inline static WebCompletion debugCompletion(NSString *name)
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DEACTIVATE_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_DESTROY_DETECTION_IMAGE_MESSAGE];
     [[self contentController] removeScriptMessageHandlerForName:WEB_AR_PLAY_VIBRATE];
-    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_START_READ_CLINK_TAG];
-    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_STOP_READ_CLINK_TAG];
+    [[self contentController] removeScriptMessageHandlerForName:WEB_AR_UPDATE_ROOM_INFO];
 }
 
 - (void)setupWebViewWithRootView:(__autoreleasing UIView*)rootView

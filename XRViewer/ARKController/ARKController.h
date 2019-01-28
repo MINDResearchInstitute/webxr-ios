@@ -63,6 +63,7 @@ typedef void (^DetectionImageCreatedCompletionType)(BOOL success, NSString* erro
 typedef void (^ActivateDetectionImageCompletionBlock)(BOOL success, NSString* errorString, NSDictionary* detectedImageAnchor);
 typedef void (^GetWorldMapCompletionBlock)(BOOL success, NSString* errorString, NSDictionary* worldMap);
 typedef void (^SetWorldMapCompletionBlock)(BOOL success, NSString* errorString);
+typedef void (^UpdateRoomInfoCompletionBlock)(BOOL success, NSString* errorString);
 
 @interface ARKController : NSObject
 
@@ -304,6 +305,8 @@ typedef void (^SetWorldMapCompletionBlock)(BOOL success, NSString* errorString);
  @param completion The completion block that will be called with the outcome of the loading of the world map
  */
 - (void)setWorldMap:(NSDictionary *)worldMapDictionary completion:(SetWorldMapCompletionBlock)completion;
+
+- (void)updateRoomInfo:(NSDictionary *)info completion:(UpdateRoomInfoCompletionBlock)completion;
 
 - (void)setSendingWorldSensingDataAuthorizationStatus:(SendWorldSensingDataAuthorizationState)sendingWorldSensingDataAuthorizationStatus;
 
