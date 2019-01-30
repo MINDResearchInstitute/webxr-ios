@@ -1067,11 +1067,11 @@ typedef void (^UICompletion)(void);
 
 - (NSDictionary *)commonData
 {
-    NSMutableDictionary *dictionary = [NSMutableDictionary new];
+//    NSMutableDictionary *dictionary = [NSMutableDictionary new];
     
-    [dictionary setValuesForKeysWithDictionary:[[self arkController] arkData]];
+//    [dictionary setValuesForKeysWithDictionary:[[self arkController] arkData]];
     
-    return [dictionary copy];
+    return [[self arkController] arkData]; //[dictionary copy];
 }
 
 - (void)sendARKData
