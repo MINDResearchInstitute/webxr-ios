@@ -143,7 +143,9 @@ var clinkcodeTestFunction:JSValue?
     
     @objc func getClinkInfo() -> NSDictionary {
         let info = NSDictionary(dictionary: clinkInfo).copy() as! NSDictionary
-//        clinkInfo = [:]
+        if ((clinkInfo["newClinkcodeTriangulations"]) != nil) {
+            clinkInfo = [:]
+        }
         return info
     }
     
