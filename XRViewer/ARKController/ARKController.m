@@ -1336,6 +1336,9 @@ double lastConvertTime = 0;
                 cvInformation[@"frame"] = frameInformation;
                 cvInformation[@"camera"] = cameraInformation;
                 
+                cvInformation[@"clinkFrame"] = [[self controller] getClinkFrame];
+                cvInformation[@"clinkInfo"] = [[self controller] getClinkInfo];
+                
 //                os_unfair_lock_lock(&(lock));
 //                computerVisionData = [cvInformation copy];
 //                os_unfair_lock_unlock(&(lock));
@@ -1345,8 +1348,8 @@ double lastConvertTime = 0;
             newData[WEB_AR_3D_GEOALIGNED_OPTION] = @([[self configuration] worldAlignment] == ARWorldAlignmentGravityAndHeading ? YES : NO);
             newData[WEB_AR_3D_VIDEO_ACCESS_OPTION] = @([self computerVisionDataEnabled] ? YES : NO);
             
-            newData[@"clinkFrame"] = [[self controller] getClinkFrame];
-            newData[@"clinkInfo"] = [[self controller] getClinkInfo];
+//            newData[@"clinkFrame"] = [[self controller] getClinkFrame];
+//            newData[@"clinkInfo"] = [[self controller] getClinkInfo];
             
 //            os_unfair_lock_lock(&(lock));
 //            arkData = [newData copy];
@@ -1689,7 +1692,7 @@ double lastConvertTime = 0;
 
 - (void)session:(ARSession *)session didAddAnchors:(NSArray<ARAnchor*>*)anchors
 {
-    DDLogDebug(@"Add Anchors - %@", [anchors debugDescription]);
+    //DDLogDebug(@"Add Anchors - %@", [anchors debugDescription]);
     for (ARAnchor* addedAnchor in anchors) {
         if ([addedAnchor isKindOfClass:[ARFaceAnchor class]] && ![self.configuration isKindOfClass:[ARFaceTrackingConfiguration class]]) {
             NSLog(@"Trying to add a face anchor to a session configuration that's not ARFaceTrackingConfiguration");
@@ -1963,7 +1966,7 @@ double lastConvertTime = 0;
 
 - (void)session:(ARSession *)session didRemoveAnchors:(NSArray<ARAnchor*>*)anchors
 {
-    DDLogDebug(@"Remove Anchors - %@", [anchors debugDescription]);
+    //DDLogDebug(@"Remove Anchors - %@", [anchors debugDescription]);
     for (ARAnchor* removedAnchor in anchors) {
         
         // logic makes no sense:  if the anchor is in objects[] list, remove it and send removed flag.  otherwise, ignore

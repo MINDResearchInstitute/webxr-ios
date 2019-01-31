@@ -36,7 +36,7 @@
 @implementation ARKSceneKitController
 
 - (NSDictionary*) getClinkFrame {
-    return [[self metalRenderer] clinkFrame];
+    return [[self metalRenderer] getClinkFrame];
 }
 
 - (NSDictionary*) getClinkInfo {
