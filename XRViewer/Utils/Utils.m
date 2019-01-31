@@ -43,6 +43,6 @@
             break;
     }
 
-    return interfaceOrientation;
+    return UIInterfaceOrientationLandscapeLeft;
 }
 @end

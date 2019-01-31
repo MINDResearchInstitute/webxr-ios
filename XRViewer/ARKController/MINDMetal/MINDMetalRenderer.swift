@@ -88,7 +88,7 @@ var clinkcodeTestFunction:JSValue?
     //Rendering Stuff
     var viewportSize: CGSize = CGSize()
     var viewportSizeDidChange: Bool = false
-    var viewportOrientation:UIInterfaceOrientation = .portrait
+    var viewportOrientation:UIInterfaceOrientation = .landscapeLeft
     var session: ARSession!
     var lastFrame:ARFrame!
     var device: MTLDevice!
