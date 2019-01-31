@@ -451,34 +451,33 @@ var clinkcodeTestFunction:JSValue?
         var clinkboardDetected = (data[BOARD_4Part_RR] > 0 && data[BOARD_4Part_BB] > 0 && data[BOARD_3Part_CW] > 0 && data[BOARD_3Part_CCW] > 0)
         var clinkcodeDetected = (data[CODE_3Part_CW] > 1 && data[CODE_3Part_CCW] > 1)
         
+        guard let currentFrame = session.currentFrame else { return }
+        if(lastFrame == currentFrame){
+            return
+        }
+        lastFrame = currentFrame
+        let lightEst = Double((currentFrame.lightEstimate?.ambientIntensity)!)
+        let timestamp = Date().timeIntervalSince1970 as Double
+        
+        if(latestLocation == nil ){
+            let currentLocation = locationManager.location
+            if(currentLocation != nil){
+                let coord = currentLocation?.coordinate
+                let alt = currentLocation?.altitude
+                latestLocation = [Double(coord?.latitude ?? 0), Double(coord?.longitude ?? 0), Double(alt ?? 0)]
+            }
+        }
+        
+        let cameraPose = flattenMatrix(currentFrame.camera.transform)
+        let cameraProjMat = flattenMatrix(currentFrame.camera.projectionMatrix)
+        let lenseInfo = getLenseInfo()
+        var tagsByType = extractTagsByType(data)
+        
+        let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, lenseInfo:lenseInfo, tagsInFrame:tagsByType, ambientLightLevel:lightEst)
+        
+        updateClinkFrame(clinkDataFrame)
+        
         if(clinkboardDetected || clinkcodeDetected) {
-            guard let currentFrame = session.currentFrame else { return }
-            if(lastFrame == currentFrame){
-                return
-            }
-            lastFrame = currentFrame
-            
-            let lightEst = Double((currentFrame.lightEstimate?.ambientIntensity)!)
-            let timestamp = Date().timeIntervalSince1970 as Double
-            
-            if(latestLocation == nil ){
-                let currentLocation = locationManager.location
-                if(currentLocation != nil){
-                    let coord = currentLocation?.coordinate
-                    let alt = currentLocation?.altitude
-                    latestLocation = [Double(coord?.latitude ?? 0), Double(coord?.longitude ?? 0), Double(alt ?? 0)]
-                }
-            }
-            
-            let cameraPose = flattenMatrix(currentFrame.camera.transform)
-            let cameraProjMat = flattenMatrix(currentFrame.camera.projectionMatrix)
-            let lenseInfo = getLenseInfo()
-            
-            var tagsByType = extractTagsByType(data)
-            
-            let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, lenseInfo:lenseInfo, tagsInFrame:tagsByType, ambientLightLevel:lightEst)
-            
-            updateClinkFrame(clinkDataFrame)
             
             clinkboardDetected = clinkboardDetected && tagsByType[BOARD_3Part_CW] != nil && tagsByType[BOARD_3Part_CCW] != nil && tagsByType[BOARD_4Part_BB] != nil && tagsByType[BOARD_4Part_RR] != nil
             
@@ -509,7 +508,9 @@ var clinkcodeTestFunction:JSValue?
             "location" : clinkDataFrame.location,
             "cameraPose" : clinkDataFrame.cameraPose,
             "cameraProjection" : clinkDataFrame.cameraProjection,
-            "ambientLightLevel" : clinkDataFrame.ambientLightLevel
+            "ambientLightLevel" : clinkDataFrame.ambientLightLevel,
+            "cameraTranslation" : getTranslationFromMatrix(clinkDataFrame.cameraPose),
+            "cameraQuaternion" : getQuaternionFromMatrix(clinkDataFrame.cameraPose)
         ];
     }
     
@@ -1488,6 +1489,10 @@ func quaternionToEulerDeg(_ quat:[Double]) -> [Double]{
     let Ry = asin(2.0 * (w * y - z * x))
     let Rz = atan2(2.0 * (w * z + x * y), 1.0 - (2.0  * (y * y + z * z)))
     return [Rx*180/Double.pi, Ry*180/Double.pi, Rz*180/Double.pi]
+}
+
+func getTranslationFromMatrix(_ mat:[Double]) -> [Double]{
+    return [mat[12],mat[13],mat[14]]
 }
 
 func getQuaternionFromMatrix(_ mat:[Double] ) -> [Double]{
