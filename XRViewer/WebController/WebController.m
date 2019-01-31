@@ -199,9 +199,6 @@ inline static WebCompletion debugCompletion(NSString *name)
 
 - (void)showBar:(BOOL)showBar
 {
-    if (showBar == NO) {
-        return;
-    }
     NSLog(@"Show bar: %@", showBar? @"Yes": @"No");
     [[[self barView] superview] layoutIfNeeded];
     

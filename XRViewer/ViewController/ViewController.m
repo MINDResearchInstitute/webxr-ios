@@ -804,7 +804,7 @@ typedef void (^UICompletion)(void);
         __weak typeof (SettingsViewController*) weakSettingsViewController = settingsViewController;
         settingsViewController.onDoneButtonTapped = ^{
             [weakSettingsViewController dismissViewControllerAnimated:YES completion:nil];
-            [[blockSelf webController] showBar:YES];
+            [[blockSelf webController] showBar:NO];
             [[blockSelf stateController] setShowMode:ShowMulti];
         };
 
