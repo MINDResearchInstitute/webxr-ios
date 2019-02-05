@@ -2,6 +2,7 @@ import MetalKit
 import ARKit
 import JavaScriptCore
 import CoreLocation
+import simd
 
 /*
  TODO: A lot of the code here should probably be moved out:
@@ -64,11 +65,12 @@ let BOARD_4Part_BB = 6
 
 let VALID_CLINKCODE_DIAGONALS = [28, 23, 49, 19, 52, 46, 13, 59]
 
-let LOW_ERROR_POSE_THRESHOLD:Double = 12.0
-let CENTER_DIST_THRESHOLD:Double = Double(NUM_PIX_Y) * 0.4
-let MIN_DEVICE_MOTION_FOR_TRIANGULATION:Double = 0.1
-let TRIANGULATION_ERROR_THRESHOLD:Double = 10
+let LOW_ERROR_POSE_THRESHOLD:Double = 2.0
+let CENTER_DIST_THRESHOLD:Double = Double(NUM_PIX_Y) * 0.04
+let MIN_DEVICE_MOTION_FOR_TRIANGULATION:Double = 0.3
+let TRIANGULATION_ERROR_THRESHOLD:Double = 5
 let MIN_TRIANGULATION_SAMPLES:Int = 1
+let NUM_ERRORS_RESET_REFERENCE:Int = 10
 
 
 //JAVASCRIPT RESOURCES
@@ -143,13 +145,13 @@ var clinkcodeTestFunction:JSValue?
     
     
     @objc func getClinkFrame() -> NSDictionary {
-        let frame = NSDictionary(dictionary: clinkFrame).copy() as! NSDictionary
+        let frame = NSDictionary(dictionary: clinkFrame).copy() as? NSDictionary ?? NSDictionary(dictionary:[:])
         return frame
     }
     
     @objc func getClinkInfo() -> NSDictionary {
         let info = NSDictionary(dictionary: clinkInfo).copy() as! NSDictionary
-        if ((clinkInfo["newClinkcodeTriangulations"]) != nil) {
+        if(clinkInfo.count > 0){
             clinkInfo = [:]
         }
         return info
@@ -173,6 +175,7 @@ var clinkcodeTestFunction:JSValue?
         //TODO: If the ARKit is already tracking and updating location, we don't need to do this:
         locationManager.delegate = self
         locationManager.requestLocation()
+        locationManager.requestWhenInUseAuthorization()
         locationUpdateTimer = Timer.scheduledTimer(withTimeInterval:locationUpdateInterval, repeats: true) { (timer) in
             self.locationManager.requestLocation()
         }
@@ -474,12 +477,20 @@ var clinkcodeTestFunction:JSValue?
             }
         }
         
+        let viewMatrixLanscapeLeft = flattenMatrix(simd_inverse(currentFrame.camera.viewMatrix(for:.landscapeLeft)))
         let cameraPose = flattenMatrix(currentFrame.camera.transform)
+        //let cameraPose = viewMatrixLanscapeLeft
+        //var viewProjection = currentFrame.camera.projectionMatrix(for: viewportOrientation, viewportSize: viewportSize, zNear: 0.001, zFar: 1000)
         let cameraProjMat = flattenMatrix(currentFrame.camera.projectionMatrix)
+        //let cameraProjMat = flattenMatrix(viewProjection)
         let lenseInfo = getLenseInfo()
         var tagsByType = extractTagsByType(data)
         
-        let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, lenseInfo:lenseInfo, tagsInFrame:tagsByType, ambientLightLevel:lightEst)
+        /*print("matrices")
+        print(viewMatrixLanscapeLeft)
+        print(cameraPose)*/
+        
+        let clinkDataFrame = ClinkDataFrame(frameID:clinkFrameID, timestamp:timestamp, location:latestLocation ?? [], focalLength:focalLength, cameraPose:cameraPose, cameraProjection:cameraProjMat, viewMatrix:viewMatrixLanscapeLeft, lenseInfo:lenseInfo, tagsInFrame:tagsByType, ambientLightLevel:lightEst)
         
         updateClinkFrame(clinkDataFrame)
         
@@ -514,6 +525,7 @@ var clinkcodeTestFunction:JSValue?
             "location" : clinkDataFrame.location,
             "cameraPose" : clinkDataFrame.cameraPose,
             "cameraProjection" : clinkDataFrame.cameraProjection,
+            "viewMatrix" : clinkDataFrame.viewMatrix,
             "ambientLightLevel" : clinkDataFrame.ambientLightLevel,
             "cameraTranslation" : getTranslationFromMatrix(clinkDataFrame.cameraPose),
             "cameraQuaternion" : getQuaternionFromMatrix(clinkDataFrame.cameraPose)
@@ -718,6 +730,7 @@ struct ClinkDataFrame{
     let focalLength:Double
     let cameraPose:[Double]
     let cameraProjection:[Double]
+    let viewMatrix:[Double]
     let lenseInfo:(position:Float, aperture:Float )
     let tagsInFrame:[Int:[ExtractedTag]] //can be used to distinguish multiple instances of same clinkdata
     let ambientLightLevel:Double
@@ -811,29 +824,50 @@ class ClinkcodeInstanceData{
     var localCoordinates:[Double] = []
     var tilt:[Double]
     
+    var triangulationErrorCount:Int = 0
     var triangulationSamples:[TriangulatedClinkcodeData] = []
     
     init(_ seedClinkcode:Clinkcode ){
         self.code = seedClinkcode.code
         self.seedEncounter = seedClinkcode
-        self.referenceEncounter = seedClinkcode
         self.tilt = seedClinkcode.getTilt()!
     }
     
     func newEncounter(_ encounter:Clinkcode ) -> ClinkcodeEncounterEvent{
         if(tagSize == 0){
             if(referenceEncounter == nil){
-                referenceEncounter = encounter
-                return .ReferenceSet
+                if(encounter.isNearCenter()){
+                    print("New Tag reference encounter")
+                    referenceEncounter = encounter
+                    triangulationErrorCount = 0;
+                    return .ReferenceSet
+                }
             }
             else{
                 let refDeviceLoc = referenceEncounter!.clinkDataFrame.getCameraLoc()
                 let newDeviceLoc = encounter.clinkDataFrame.getCameraLoc()
                 let deviceMotion = distanceBetween(refDeviceLoc, newDeviceLoc)
                 if(deviceMotion > MIN_DEVICE_MOTION_FOR_TRIANGULATION && encounter.isNearCenter()){
-                    guard let triangulationData = triangulateTagSize(referenceEncounter!, encounter),
-                        triangulationData.error < TRIANGULATION_ERROR_THRESHOLD
-                        else {return .None}
+                    guard let triangulationData = triangulateTagSize(referenceEncounter!, encounter) else {
+                        triangulationErrorCount += 1
+                        if(triangulationErrorCount > NUM_ERRORS_RESET_REFERENCE){
+                            print("Resetting Reference Tag too many non triangulations")
+                            referenceEncounter = nil
+                            triangulationErrorCount = 0;
+                        }
+                        return .None
+                    }
+                    print("Tag Error: \(triangulationData.error), size: \(triangulationData.tagSize)")
+                    
+                    if(triangulationData.error > TRIANGULATION_ERROR_THRESHOLD){
+                        triangulationErrorCount += 1
+                        if(triangulationErrorCount > NUM_ERRORS_RESET_REFERENCE){
+                            print("Resetting Reference Tag too many errors")
+                            referenceEncounter = nil
+                            triangulationErrorCount = 0;
+                        }
+                        return .None
+                    }
                     referenceEncounter = nil
                     triangulationSamples.append(triangulationData)
                     if(triangulationSamples.count >= MIN_TRIANGULATION_SAMPLES){
@@ -843,6 +877,7 @@ class ClinkcodeInstanceData{
                         }
                         avgTagSize /= Double(triangulationSamples.count)
                         self.tagSize = avgTagSize
+                        self.localCoordinates = triangulationData.centerPoint
                         return .TagSizeTriangulated
                     }
                     
@@ -1115,6 +1150,7 @@ class Clinkcode{
         self.globalQuaternion = poseInfo["quaternion"]
         self.unitTranslation = poseInfo["translation"]
         self.poseError = poseInfo["error"]?[0]
+        //print("Tag pose error: \(self.poseError)")
     }
 }
 

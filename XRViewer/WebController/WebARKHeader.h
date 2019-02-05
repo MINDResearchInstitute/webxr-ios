@@ -9,7 +9,7 @@
 //#define WEB_URL @"https://ios-viewer.webxrexperiments.com/viewer.html"
 //#define WEB_URL @"https://10.0.1.5:8080/content/polygonar/handle.html"
 //#define WEB_URL @"https://storage.googleapis.com/czoo/content/polygonar/handle.html"
-#define WEB_URL @"https://10.0.1.5:8080/content/xr/handle.html"
+#define WEB_URL @"https://10.0.1.5:8080/content/polygonar/handle.html"
 //#define WEB_URL @"https://192.168.0.138:8080/content/xr/handle.html"
 
 //#define WEB_URL @"https://192.168.0.138:8080/content/polygonar/handle.html"
