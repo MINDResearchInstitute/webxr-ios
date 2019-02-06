@@ -308,6 +308,8 @@ typedef void (^UpdateRoomInfoCompletionBlock)(BOOL success, NSString* errorStrin
 
 - (void)updateRoomInfo:(NSDictionary *)info completion:(UpdateRoomInfoCompletionBlock)completion;
 
+- (void)renderCameraFrame;
+
 - (void)setSendingWorldSensingDataAuthorizationStatus:(SendWorldSensingDataAuthorizationState)sendingWorldSensingDataAuthorizationStatus;
 
 /**

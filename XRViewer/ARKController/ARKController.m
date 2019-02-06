@@ -571,6 +571,10 @@ double lastConvertTime = 0;
     [[self controller] updateRoomInfo:info];
 }
 
+- (void)renderCameraFrame {
+    [[self controller] renderCameraFrame];
+}
+
 - (void)_setWorldMap:(ARWorldMap *)map  {
     SetWorldMapCompletionBlock completion = self.setWorldMapPromise;
     self.setWorldMapPromise = nil;

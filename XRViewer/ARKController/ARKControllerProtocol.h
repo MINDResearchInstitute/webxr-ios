@@ -29,6 +29,7 @@
 - (NSDictionary*) getClinkFrame;
 - (NSDictionary*) getClinkInfo;
 - (void) updateRoomInfo:(NSDictionary*)info;
+- (void) renderCameraFrame;
 
 @end
 

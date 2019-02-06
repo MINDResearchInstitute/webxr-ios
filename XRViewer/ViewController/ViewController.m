@@ -881,6 +881,15 @@ typedef void (^UICompletion)(void);
         [[blockSelf arkController] updateRoomInfo:dictionary completion:completion];
     }];
 
+    [[self webController] setOnSendComputerVisionDataComplete:^(id param, NSError * error) {
+        if (error == nil) {
+            [[blockSelf arkController] renderCameraFrame];
+        }
+        else {
+            
+        }
+    }];
+    
     if ([[self stateController] wasMemoryWarning])
     {
         [[self stateController] applyOnDidReceiveMemoryAction];

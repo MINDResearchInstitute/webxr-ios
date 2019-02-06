@@ -29,6 +29,7 @@
 @property CGPoint hitTestFocusPoint;
 
 @property (nonatomic, strong) MTKView * mtkView;
+@property (nonatomic, strong) MTKView * offscreen;
 @property (nonatomic, strong) MINDMetalRenderer * metalRenderer;
 
 @end
@@ -45,6 +46,10 @@
 
 - (void) updateRoomInfo:(NSDictionary*)info {
     [[self metalRenderer] updateRoomInfoWithRoomInfo:info];
+}
+
+- (void) renderCameraFrame {
+    [[self metalRenderer] renderCameraFrame];
 }
 
 - (void)dealloc
@@ -177,12 +182,13 @@
 - (void)setupMetalRendererWithSession:(ARSession*)session size:(CGSize)size
 {
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    self.offscreen = [[MTKView alloc]initWithFrame:CGRectMake(0, 0, size.width, size.height)];
     self.mtkView = [[MTKView alloc]initWithFrame:CGRectMake(0, 0, size.width, size.height) device:device];
     self.mtkView.device = device;
     self.mtkView.delegate = self;
     
     self.metalRenderer = [[MINDMetalRenderer alloc] init];
-    [self.metalRenderer setupWithSession:session device:device view:self.mtkView];
+    [self.metalRenderer setupWithSession:session device:device view:self.mtkView offscreen:self.offscreen];
     [self.metalRenderer drawRectResizedWithSize: size];
     [[self renderView] addSubview:self.mtkView];
 }

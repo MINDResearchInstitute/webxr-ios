@@ -41,6 +41,7 @@ typedef void (^OnCreateDetectionImage)(NSDictionary*, CreateDetectionImageComple
 typedef void (^OnGetWorldMap)(GetWorldMapCompletionBlock);
 typedef void (^OnSetWorldMap)(NSDictionary*, SetWorldMapCompletionBlock);
 typedef void (^OnUpdateRoomInfo)(NSDictionary*, UpdateRoomInfoCompletionBlock);
+typedef void (^OnSendComputerVisionDataComplete)(id, NSError *);
 
 @interface WebController : NSObject
 
@@ -74,6 +75,7 @@ typedef void (^OnUpdateRoomInfo)(NSDictionary*, UpdateRoomInfoCompletionBlock);
 @property(nonatomic, copy) OnGetWorldMap onGetWorldMap;
 @property(nonatomic, copy) OnSetWorldMap onSetWorldMap;
 @property(nonatomic, copy) OnUpdateRoomInfo onUpdateRoomInfo;
+@property(nonatomic, copy) OnSendComputerVisionDataComplete onSendComputerVisionDataComplete;
 
 @property (nonatomic, strong) Animator *animator;
 

@@ -95,8 +95,8 @@ inline static WebCompletion debugCompletion(NSString *name)
     if (frameTimestamp - lastSentTime > (1000/CVIMAGE_FPS)) {
         lastSentTime = frameTimestamp;
         [self callWebMethod:@"onComputerVisionData" paramJSON:computerVisionData webCompletion:^(id  _Nullable param, NSError * _Nullable error) {
-            if (error != nil) {
-                NSLog(@"Error onComputerVisionData: %@", [error localizedDescription]);
+            if ([self onSendComputerVisionDataComplete]) {
+                [self onSendComputerVisionDataComplete](param, error);
             }
         }];
     }

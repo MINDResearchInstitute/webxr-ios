@@ -97,10 +97,13 @@ var clinkcodeTestFunction:JSValue?
     var commandQueue: MTLCommandQueue!
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
     var renderDestination: MTKView!
+    var offscreen: MTKView!
     var sharedUniformBuffer: MTLBuffer!
     var imagePlaneVertexBuffer: MTLBuffer!
     var convertToRGBPipelineState: MTLRenderPipelineState!
     var capturedImagePipelineState: MTLRenderPipelineState!
+    var offscreenPipelineState: MTLRenderPipelineState!
+    var renderCameraFrameReady: Bool = false
     var capturedImageTextureY: MTLTexture!
     var capturedImageTextureCbCr: MTLTexture!
     var convertedImageTextureRGB: MTLTexture!
@@ -164,10 +167,15 @@ var clinkcodeTestFunction:JSValue?
         //
     }
     
-    @objc func setup(session: ARSession, device: MTLDevice, view: MTKView) {
+    @objc func renderCameraFrame() {
+        renderCameraFrameReady = true
+    }
+    
+    @objc func setup(session: ARSession, device: MTLDevice, view: MTKView, offscreen: MTKView) {
         self.session = session
         self.device = device
         self.renderDestination = view
+        self.offscreen = offscreen
         backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: AVMediaType.video, position: .back)
         setupJavascript()
         setupPipeline()
@@ -240,6 +248,9 @@ var clinkcodeTestFunction:JSValue?
         renderDestination.colorPixelFormat = .bgra8Unorm
         renderDestination.sampleCount = 1
         
+        offscreen.colorPixelFormat = .bgra8Unorm
+        offscreen.sampleCount = 1
+        
         //Shaders
         let defaultLibrary = device.makeDefaultLibrary()!
         let directVertexShader = defaultLibrary.makeFunction(name: "directVertexShader")
@@ -299,6 +310,16 @@ var clinkcodeTestFunction:JSValue?
         do { try capturedImagePipelineState = device.makeRenderPipelineState(descriptor: clinkPipelineStateDescriptor) }
         catch let error { print("Failed to created captured clink pipeline state, error \(error)") }
         
+        let offscreenPipelineStateDescriptor = MTLRenderPipelineDescriptor()
+        offscreenPipelineStateDescriptor.label = "OffscreenPipeline"
+        offscreenPipelineStateDescriptor.sampleCount = offscreen.sampleCount
+        offscreenPipelineStateDescriptor.vertexFunction = transformingVertexShader
+        offscreenPipelineStateDescriptor.fragmentFunction = capturedImageFragmentShader
+        offscreenPipelineStateDescriptor.vertexDescriptor = imagePlaneVertexDescriptor
+        offscreenPipelineStateDescriptor.colorAttachments[0].pixelFormat = offscreen.colorPixelFormat
+        do { try offscreenPipelineState = device.makeRenderPipelineState(descriptor: offscreenPipelineStateDescriptor) }
+        catch let error { print("Failed to created offscreen pipeline state, error \(error)") }
+        
         commandQueue = device.makeCommandQueue()
     }
     
@@ -338,10 +359,19 @@ var clinkcodeTestFunction:JSValue?
         convertTextureToRGB(renderEncoder: conversionRenderEncoder)
         conversionRenderEncoder.endEncoding()
         
-        guard let renderPassDescriptor = renderDestination.currentRenderPassDescriptor,
-            let drawable = renderDestination.currentDrawable else { return }
+        let dest:MTKView = (renderCameraFrameReady ? renderDestination : offscreen)
+        
+        guard let renderPassDescriptor = dest.currentRenderPassDescriptor,
+            let drawable = dest.currentDrawable else { return }
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else { return }
-        detectAndRenderClinkData(renderEncoder: renderEncoder)
+        
+        if (renderCameraFrameReady) {
+            detectAndRenderClinkData(renderEncoder: renderEncoder, pipelineState: capturedImagePipelineState)
+            renderCameraFrameReady = false
+        }
+        else {
+            detectAndRenderClinkData(renderEncoder: renderEncoder, pipelineState: offscreenPipelineState)
+        }
         
         renderEncoder.endEncoding()
         commandBuffer.present(drawable)
@@ -434,11 +464,11 @@ var clinkcodeTestFunction:JSValue?
         renderEncoder.popDebugGroup()
     }
     
-    func detectAndRenderClinkData(renderEncoder: MTLRenderCommandEncoder ) {
+    func detectAndRenderClinkData(renderEncoder: MTLRenderCommandEncoder, pipelineState: MTLRenderPipelineState) {
         guard capturedImageTextureY != nil && capturedImageTextureCbCr != nil else { return }
         renderEncoder.pushDebugGroup("detectAndRenderClinkData")
         renderEncoder.setCullMode(.none)
-        renderEncoder.setRenderPipelineState(capturedImagePipelineState)
+        renderEncoder.setRenderPipelineState(pipelineState)
         renderEncoder.setVertexBuffer(imagePlaneVertexBuffer, offset: 0, index: 0)
         renderEncoder.setFragmentTexture(convertedImageTextureRGB, index: 0)
         renderEncoder.setFragmentBuffer(clinkDataBuffer, offset: 0, index: 0)
